@@ -23,7 +23,7 @@ int main() {
 		return -1;
 	}
 
-	cv::resize(img_original, img_original, cv::Size(448, 336));
+	resize(img_original, img_original, Size(448, 336));
 
 	std::cout << "Image loaded: " << img_original.cols << "x" << img_original.rows << std::endl;
 	std::cout << std::endl;
