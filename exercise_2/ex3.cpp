@@ -13,7 +13,7 @@ int main() {
 	// 4 orientations (0°, 45°, 90°, 135°)
 	std::vector<double> orientations = {0, CV_PI / 4, CV_PI / 2, 3 * CV_PI / 4};
 
-	// Different parameter sets: {sigma, wavelength, aspect_ratio}
+	// different parameter sets: {sigma, wavelength, aspect_ratio}
 	std::vector<std::tuple<double, double, double>> params = {{2.0, 5.0, 0.5}, {4.0, 10.0, 0.5}, {6.0, 20.0, 0.8}};
 
 	for(int p = 0; p < params.size(); p++) {
@@ -24,26 +24,26 @@ int main() {
 		std::vector<cv::Mat> responses;
 
 		for(double theta : orientations) {
-			// Create Gabor kernel
+			// create Gabor kernel
 			cv::Mat kernel = cv::getGaborKernel(cv::Size(31, 31), sigma, theta, wavelength, aspect, 0, CV_32F);
 
-			// Apply filter
+			// apply filter
 			cv::Mat filtered;
 			cv::filter2D(img, filtered, CV_32F, kernel);
 			responses.push_back(filtered);
 		}
 
-		// Combine using per-pixel maximum
+		// combine using per-pixel maximum
 		cv::Mat combined = responses[0].clone();
 		for(int i = 1; i < responses.size(); i++) {
 			cv::max(combined, responses[i], combined);
 		}
 
-		// Normalize for display
+		// normalize for display
 		cv::normalize(combined, combined, 0, 255, cv::NORM_MINMAX);
 		combined.convertTo(combined, CV_8U);
 
-		// Show the combined result for this parameter set
+		// show the combined result for this parameter set
 		cv::imshow("Combined Gabor Parameter set " + std::to_string(p), combined);
 	}
 
