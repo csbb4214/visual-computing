@@ -19,7 +19,7 @@ int main() {
 
 		// compute Otsu threshold
 		cv::Mat thresh;
-		double otsu_thresh_val = cv::threshold(blurred, thresh, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+		double otsu_thresh_val = cv::threshold(blurred, thresh, 0, 255, cv::THRESH_OTSU);
 		double highThresh = otsu_thresh_val;
 		double lowThresh = otsu_thresh_val * 0.5;
 
