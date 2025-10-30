@@ -47,6 +47,8 @@ int main() {
 	testBRISK(img_original, img_scaled, "Scale 0.7x");
 	testBRISK(img_original, img_brightness, "Brightness");
 
+	waitKey(0);
+
 	return 0;
 }
 
@@ -93,8 +95,6 @@ void testAKAZE(const Mat& img_1, const Mat& img_2, const std::string& trans_name
 
 	std::string window_name = "AKAZE - " + trans_name;
 	imshow(window_name, img_matches);
-	waitKey(0);
-	destroyWindow(window_name);
 }
 
 void testBRISK(const Mat& img_1, const Mat& img_2, const std::string& trans_name) {
@@ -140,8 +140,6 @@ void testBRISK(const Mat& img_1, const Mat& img_2, const std::string& trans_name
 
 	std::string window_name = "BRISK - " + trans_name;
 	imshow(window_name, img_matches);
-	waitKey(0);
-	destroyWindow(window_name);
 }
 
 Mat applyRotation(const Mat& img, double angle) {
