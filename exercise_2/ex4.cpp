@@ -2,7 +2,7 @@
 #include <opencv2/opencv.hpp>
 
 int main() {
-	std::vector<std::string> images = {"img.jpg"};
+	std::vector<std::string> images = {"img.jpg", "img2.jpg"};
 
 	for(auto& path : images) {
 		cv::Mat img = cv::imread(path, cv::IMREAD_GRAYSCALE);
@@ -41,9 +41,8 @@ int main() {
 		cv::imshow("Canny (Otsu) - " + path, edgesCanny);
 		cv::imshow("Sobel - " + path, sobel);
 		cv::imshow("Laplacian - " + path, laplacian);
-
-		cv::waitKey(0);
 	}
 
+	cv::waitKey(0);
 	return 0;
 }
