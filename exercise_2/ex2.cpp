@@ -57,3 +57,4 @@ int main() {
 		cv::waitKey(0);
 		return 0;
 	}
+}
