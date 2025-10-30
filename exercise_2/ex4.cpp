@@ -11,21 +11,23 @@ int main() {
 			return -1;
 		}
 
-		// Apply Gaussian Blur to reduce noise
+		cv::resize(img, img, cv::Size(448, 336));
+
+		// apply Gaussian Blur to reduce noise
 		cv::Mat blurred;
 		cv::GaussianBlur(img, blurred, cv::Size(5, 5), 1.0);
 
-		// Compute Otsu threshold
+		// compute Otsu threshold
 		cv::Mat thresh;
 		double otsu_thresh_val = cv::threshold(blurred, thresh, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 		double highThresh = otsu_thresh_val;
 		double lowThresh = otsu_thresh_val * 0.5;
 
-		// Apply Canny using Otsu thresholds
+		// apply Canny using Otsu thresholds
 		cv::Mat edgesCanny;
 		cv::Canny(blurred, edgesCanny, lowThresh, highThresh);
 
-		// Apply other detectors for comparison
+		// apply other detectors for comparison
 		cv::Mat sobelX, sobelY, sobel, laplacian;
 		cv::Sobel(blurred, sobelX, CV_16S, 1, 0);
 		cv::Sobel(blurred, sobelY, CV_16S, 0, 1);
@@ -34,7 +36,7 @@ int main() {
 		cv::Laplacian(blurred, laplacian, CV_16S);
 		cv::convertScaleAbs(laplacian, laplacian);
 
-		// Print results
+		// print results
 		cv::imshow("Original - " + path, img);
 		cv::imshow("Canny (Otsu) - " + path, edgesCanny);
 		cv::imshow("Sobel - " + path, sobel);
