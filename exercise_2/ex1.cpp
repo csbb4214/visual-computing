@@ -15,7 +15,7 @@ int main() {
 	std::vector<cv::Point2f> src = {{100, 100}, {500, 100}, {100, 400}, {500, 400}};
 
 	// points in the perspective
-	std::vector<cv::Point2f> perspective = {{200, 120}, / {400, 120}, {80, 400}, {520, 400}};
+	std::vector<cv::Point2f> perspective = {{200, 120}, {400, 120}, {80, 400}, {520, 400}};
 
 	// Answer: The transformation shows the original picture in the form of a trapezoid, which by definition has two non-parallel sides. This wouldn´t be
 	// possible with an affine transformation, since affine transformations always preserve parallel lines.
