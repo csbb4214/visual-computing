@@ -1,48 +1,45 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
-using namespace cv;
-using namespace std;
-
 int main() {
-	vector<string> images = {"image1.jpg", "image2.jpg"};
+	std::vector<std::string> images = {"image1.jpg", "image2.jpg"};
 
 	for(auto& path : images) {
-		Mat img = imread(path, IMREAD_GRAYSCALE);
+		cv::Mat img = cv::imread(path, cv::IMREAD_GRAYSCALE);
 		if(img.empty()) {
 			std::cerr << "reading of the file not possible" << std::endl;
 			return -1;
 		}
 
-		// apply Gaussian Blur to reduce noise
-		Mat blurred;
-		GaussianBlur(img, blurred, Size(5, 5), 1.0);
+		// Apply Gaussian Blur to reduce noise
+		cv::Mat blurred;
+		cv::GaussianBlur(img, blurred, cv::Size(5, 5), 1.0);
 
-		// compute Otsu threshold
-		double otsu_thresh_val = threshold(blurred, Mat(), 0, 255, THRESH_BINARY | THRESH_OTSU);
+		// Compute Otsu threshold
+		double otsu_thresh_val = cv::threshold(blurred, cv::Mat(), 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 		double highThresh = otsu_thresh_val;
 		double lowThresh = otsu_thresh_val * 0.5; // standard ratio
 
-		// apply Canny using Otsu thresholds
-		Mat edgesCanny;
-		Canny(blurred, edgesCanny, lowThresh, highThresh);
+		// Apply Canny using Otsu thresholds
+		cv::Mat edgesCanny;
+		cv::Canny(blurred, edgesCanny, lowThresh, highThresh);
 
-		// apply other detectors for comparison
-		Mat sobelX, sobelY, sobel, laplacian;
-		Sobel(blurred, sobelX, CV_16S, 1, 0);
-		Sobel(blurred, sobelY, CV_16S, 0, 1);
-		convertScaleAbs(sobelX + sobelY, sobel);
+		// Apply other detectors for comparison
+		cv::Mat sobelX, sobelY, sobel, laplacian;
+		cv::Sobel(blurred, sobelX, CV_16S, 1, 0);
+		cv::Sobel(blurred, sobelY, CV_16S, 0, 1);
+		cv::convertScaleAbs(sobelX + sobelY, sobel);
 
-		Laplacian(blurred, laplacian, CV_16S);
-		convertScaleAbs(laplacian, laplacian);
+		cv::Laplacian(blurred, laplacian, CV_16S);
+		cv::convertScaleAbs(laplacian, laplacian);
 
-		// print results
-		imshow("Original - " + path, img);
-		imshow("Canny (Otsu) - " + path, edgesCanny);
-		imshow("Sobel - " + path, sobel);
-		imshow("Laplacian - " + path, laplacian);
+		// Print results
+		cv::imshow("Original - " + path, img);
+		cv::imshow("Canny (Otsu) - " + path, edgesCanny);
+		cv::imshow("Sobel - " + path, sobel);
+		cv::imshow("Laplacian - " + path, laplacian);
 
-		waitKey(0);
+		cv::waitKey(0);
 	}
 
 	return 0;
