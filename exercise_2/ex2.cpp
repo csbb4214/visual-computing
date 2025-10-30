@@ -53,8 +53,8 @@ int main() {
 		/*Answer: Each level of the Laplacian Pyramid highlights edges and fine details that were lost between two consecutive Gaussian levels.
 		        In other words, the Laplacian shows the high-frequencies of the image.
 		*/
-
-		cv::waitKey(0);
-		return 0;
 	}
+
+	cv::waitKey(0);
+	return 0;
 }
