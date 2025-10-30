@@ -2,7 +2,7 @@
 #include <opencv2/opencv.hpp>
 
 int main() {
-	std::vector<std::string> images = {"image1.jpg", "image2.jpg"};
+	std::vector<std::string> images = {"img.jpg"};
 
 	for(auto& path : images) {
 		cv::Mat img = cv::imread(path, cv::IMREAD_GRAYSCALE);
@@ -16,9 +16,10 @@ int main() {
 		cv::GaussianBlur(img, blurred, cv::Size(5, 5), 1.0);
 
 		// Compute Otsu threshold
-		double otsu_thresh_val = cv::threshold(blurred, cv::Mat(), 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+		cv::Mat thresh;
+		double otsu_thresh_val = cv::threshold(blurred, thresh, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 		double highThresh = otsu_thresh_val;
-		double lowThresh = otsu_thresh_val * 0.5; // standard ratio
+		double lowThresh = otsu_thresh_val * 0.5;
 
 		// Apply Canny using Otsu thresholds
 		cv::Mat edgesCanny;
