@@ -67,7 +67,7 @@ void testAKAZE(const Mat& img_1, const Mat& img_2, const std::string& trans_name
 	detector->compute(img_2, keypoints_2, descriptors_2);
 
 	// Match descriptors (AKAZE uses binary descriptors)
-	BFMatcher matcher(NORM_HAMMING);
+	BFMatcher matcher(NORM_L2);
 	std::vector<DMatch> matches;
 	matcher.match(descriptors_1, descriptors_2, matches);
 
@@ -112,7 +112,7 @@ void testBRISK(const Mat& img_1, const Mat& img_2, const std::string& trans_name
 	detector->compute(img_2, keypoints_2, descriptors_2);
 
 	// Match descriptors (BRISK uses binary descriptors)
-	BFMatcher matcher(NORM_HAMMING);
+	BFMatcher matcher(NORM_L2);
 	std::vector<DMatch> matches;
 	matcher.match(descriptors_1, descriptors_2, matches);
 
