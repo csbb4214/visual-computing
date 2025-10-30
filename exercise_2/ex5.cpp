@@ -93,8 +93,7 @@ void testAKAZE(const Mat& img_1, const Mat& img_2, const std::string& trans_name
 	Mat img_matches;
 	drawMatches(img_1, keypoints_1, img_2, keypoints_2, good_matches, img_matches);
 
-	std::string window_name = "AKAZE - " + trans_name;
-	imshow(window_name, img_matches);
+	imshow("AKAZE - " + trans_name, img_matches);
 }
 
 void testBRISK(const Mat& img_1, const Mat& img_2, const std::string& trans_name) {
@@ -138,8 +137,7 @@ void testBRISK(const Mat& img_1, const Mat& img_2, const std::string& trans_name
 	Mat img_matches;
 	drawMatches(img_1, keypoints_1, img_2, keypoints_2, good_matches, img_matches);
 
-	std::string window_name = "BRISK - " + trans_name;
-	imshow(window_name, img_matches);
+	imshow("BRISK - " + trans_name, img_matches);
 }
 
 Mat applyRotation(const Mat& img, double angle) {
