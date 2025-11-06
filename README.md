@@ -4,7 +4,9 @@ Open folder "Assignment_X" in Visual Studio.
 Open a terminal and type the following commands:
 
 **mkdir build**
+
 **cd build**
+
 **cmake -G "Visual Studio 17 2022" -A x64 ..**
 
 This builds the solution in the /build directory.
