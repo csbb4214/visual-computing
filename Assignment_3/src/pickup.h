@@ -10,34 +10,34 @@ struct Pickup {
     Mesh wheelFL, wheelFR, wheelRL, wheelRR;
     Mesh spare;
 
-    // Final world model matrices (werden pro Frame neu gebaut)
-    Matrix4D modelBase;
-    Matrix4D modelCockpit;
-    Matrix4D modelWheelFL, modelWheelFR, modelWheelRL, modelWheelRR;
-    Matrix4D modelSpare;
+    // Lokale Modellmatrizen (relativ zum Pickup-Ursprung)
+    Matrix4D modelBaseLocal;
+    Matrix4D modelCockpitLocal;
+    Matrix4D modelWheelFLBase, modelWheelFRBase, modelWheelRLBase, modelWheelRRBase;
+    Matrix4D modelSpareLocal;
 
-    // Geometrie / Maße
-    float baseLength;       // ~ Fahrzeuglänge
-    float baseHeight;       // Höhe der Basis
-    float baseWidth;        // Breite
-    float baseY;            // y-Position der Basis (Mitte)
+    // Globale Transformationsmatrix des Fahrzeugs (Weltmatrix)
+    Matrix4D vehicleTransform;
 
-    float wheelBaseHalf;    // halber Achsabstand (nur zur internen Berechnung)
-    float wheelTrack;       // Abstand zwischen linker und rechter Radseite
+    // Truck dimensions (aus der Basis abgeleitet)
+    float baseLength;    // 4.0
+    float baseHeight;    // 1.0
+    float baseWidth;     // 1.5
+    float baseY;         // 2.0 (center Y position)
+
+    // Rad-Parameter (für calculateTurningAnglePerMeter)
+    float wheelBaseHalf;     // halber Radstand
+    float wheelTrack;        // Abstand links–rechts
     float frontWheelRadius;
     float rearWheelRadius;
     float wheelThickness;
 
-    // Für calculateTurningAnglePerMeter
-    float wheelBase;        // Abstand Vorderachse–Hinterachse
-    float width;            // Fahrzeugbreite (für Turning-Berechnung)
+    float wheelBase;         // voller Radstand
+    float width;             // Fahrzeugbreite
 
-    // Dynamischer Zustand (für Aufgabe 2)
-    Vector3D position = {0.0f, 0.0f, 0.0f}; // Weltposition (Pickup-Origin)
-    float rotationY = 0.0f;                 // Yaw des Fahrzeugs
-    float steeringAngle = 0.0f;             // Lenkwinkel der Vorderräder (rad)
-    float wheelSpinFront = 0.0f;            // Rotationswinkel der Vorderräder (rad)
-    float wheelSpinRear  = 0.0f;            // Rotationswinkel der Hinterräder (rad)
+    // Neue Variablen für Radanimation und Lenkung
+    float wheelRotationAngle;    // Rotationswinkel aller Räder (um ihre eigene Achse)
+    float wheelSteeringAngle;    // Lenkwinkel der Vorderräder (nur Vorderräder)
 };
 
 /* Create a pickup truck with specified colors */
@@ -49,15 +49,18 @@ void pickupDelete(Pickup &pickup);
 /* Draw the entire pickup truck */
 void pickupDraw(const Pickup &pickup, ShaderProgram &shader);
 
-/* Update pickup movement and wheel animation based on input (Task 2) */
+/* Update pickup transform based on input (Task 2) */
 void pickupUpdate(
     Pickup &pickup,
-    float moveSpeed,                 // Fahrgeschwindigkeit [Einheiten/s]
-    float maxSteeringAngleRad,       // maximaler Lenkwinkel der Räder [rad]
-    float turningAnglePerMeterDeg,   // wie stark das Auto pro Meter dreht [deg/m]
-    float dt,                        // Delta time seit letztem Frame
-    bool moveForward,                // W
-    bool moveBackward,               // S
-    bool turnLeft,                   // A
-    bool turnRight                   // D
+    float moveSpeed,
+    float maxSteeringAngleRad,      // für Lenkbegrenzung der Vorderräder
+    float turningAnglePerMeterDeg,  // wie stark dreht der Wagen pro Meter
+    float dt,
+    bool moveForward,
+    bool moveBackward,
+    bool turnLeft,
+    bool turnRight
 );
+
+/* Optionale Hilfsfunktion: Fahrzeugposition aus vehicleTransform für Kamera-Follow */
+Vector3D pickupGetWorldPosition(const Pickup &pickup);

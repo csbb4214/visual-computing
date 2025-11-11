@@ -28,8 +28,6 @@ struct {
 
 /* calculate how much the car approximately turns per meter travelled for a given turning angle */
 float calculateTurningAnglePerMeter(float wheelBase, float turningAngle, float width) {
-    /* according to https://calculator.academy/turning-radius-calculator/ and
-     * https://gamedev.stackexchange.com/questions/50022/typical-maximum-steering-angle-of-a-real-car/50029 */
     float turningRadius = wheelBase / tan(turningAngle);
     float innerTurningRadius = turningRadius - width;
     return 360.0f / (2.0f * innerTurningRadius * static_cast<float>(M_PI));
@@ -127,7 +125,6 @@ void sceneInit(float width, float height) {
         500.0f,
         {12.0f, 4.0f, -12.0f}
     );
-    /* initial lookAt to origin */
     sScene.camera.lookAt = {0.0f, 0.0f, 0.0f};
     sScene.cameraFollowPickup = false;
     sScene.zoomSpeedMultiplier = 0.05f;
@@ -143,8 +140,8 @@ void sceneInit(float width, float height) {
     sScene.pickup = pickupCreate(colorBase, colorCockpit, colorWheels);
 
     /* Fahr-Parameter für Aufgabe 2 */
-    sScene.moveSpeed           = 5.0f;                 // "vordefinierte Velocity"
-    sScene.maxSteeringAngleRad = to_radians(30.0f);    // max Lenkwinkel θ
+    sScene.moveSpeed           = 5.0f;                 // „vordefinierte Velocity“
+    sScene.maxSteeringAngleRad = to_radians(30.0f);
     sScene.turningAnglePerMeterDeg =
         calculateTurningAnglePerMeter(
             sScene.pickup.wheelBase,
@@ -163,7 +160,7 @@ void sceneUpdate(float dt) {
     bool turnLeft     = sInput.buttonPressed[2]; // A
     bool turnRight    = sInput.buttonPressed[3]; // D
 
-    // Pickup-Bewegung + Rad-Animation (Aufgabe 2)
+    // Pickup-Bewegung (Aufgabe 2)
     pickupUpdate(
         sScene.pickup,
         sScene.moveSpeed,
@@ -178,7 +175,7 @@ void sceneUpdate(float dt) {
 
     /* if camera mode 2 is activated, set the camera focus to the pos of the pickup*/
     if (sScene.cameraFollowPickup) {
-        sScene.camera.lookAt = sScene.pickup.position;
+        sScene.camera.lookAt = pickupGetWorldPosition(sScene.pickup);
     }
 }
 
@@ -232,28 +229,19 @@ int main(int argc, char **argv) {
 
     /* loop until user closes window */
     while (!glfwWindowShouldClose(window)) {
-        /* poll and process input and window events */
         glfwPollEvents();
 
-        /* update camera and model matrices */
         timeStampNew = glfwGetTime();
         sceneUpdate(static_cast<float>(timeStampNew - timeStamp));
         timeStamp = timeStampNew;
 
-        /* draw all objects in the scene */
         sceneDraw();
-
-        /* swap front and back buffer */
         glfwSwapBuffers(window);
     }
 
-    /*-------- cleanup --------*/
-    /* delete opengl shader and buffers */
     shaderDelete(sScene.shaderColor);
     groundDelete(sScene.ground);
     pickupDelete(sScene.pickup);
-
-    /* cleanup glfw/glcontext */
     windowDelete(window);
 
     return EXIT_SUCCESS;

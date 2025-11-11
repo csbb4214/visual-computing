@@ -1,100 +1,15 @@
 #include <cstdlib>
 #include <iostream>
-#include <cmath> // für sin, cos, fabs
+#include <cmath> // für fabs
 
 #include "mygl/mesh.h"
 #include "mygl/shader.h"
 
 #include "pickup.h"
 
-// Hilfsfunktion: baut alle Modelmatrizen aus dem aktuellen Zustand
-static void pickupBuildModelMatrices(Pickup &pickup) {
-    // Welttransformation aus Position + Yaw
-    Matrix4D world =
-        Matrix4D::translation(pickup.position) *
-        Matrix4D::rotationY(pickup.rotationY);
-
-    // Basis
-    Matrix4D baseLocal =
-        Matrix4D::translation({0.0f, pickup.baseY, 0.0f}) *
-        Matrix4D::scale(pickup.baseLength, pickup.baseHeight, pickup.baseWidth);
-
-    pickup.modelBase = world * baseLocal;
-
-    // Cockpit (wie in deiner ursprünglichen Version)
-    float cockpitX = pickup.baseLength / 4.0f;
-    float cockpitY = pickup.baseY + pickup.baseHeight + 1.0f;
-
-    Matrix4D cockpitLocal =
-        Matrix4D::translation({cockpitX, cockpitY, 0.0f}) *
-        Matrix4D::scale(1.0f, 1.0f, pickup.baseWidth);
-
-    pickup.modelCockpit = world * cockpitLocal;
-
-    // Rad-Geometrie & Matrizen
-    float wheelBaseHalf = pickup.wheelBaseHalf;
-    float wheelTrack    = pickup.wheelTrack;
-    float frontR        = pickup.frontWheelRadius;
-    float rearR         = pickup.rearWheelRadius;
-    float thickness     = pickup.wheelThickness;
-
-    float frontWheelX   = wheelBaseHalf * 1.4f;
-    float rearWheelX    = -wheelBaseHalf * 1.0f;
-
-    // Zylinder-Achse ist entlang z → wir drehen um Y 90°, damit sie entlang x zeigt
-    Matrix4D wheelRot      = Matrix4D::rotationY(to_radians(90.0f));
-    Matrix4D wheelFScale = Matrix4D::scale(frontR, thickness, frontR);
-    Matrix4D wheelRScale = Matrix4D::scale(rearR, thickness, rearR);
-    // Lenkung (Vorderräder)
-    Matrix4D steerRot = Matrix4D::rotationY(pickup.steeringAngle);
-
-    // Drehen um Z-Achse (lokale Achse des Zylinders → nach wheelRot wird das zur x-Achse)
-    Matrix4D spinFront = Matrix4D::rotationX(pickup.wheelSpinFront);
-    Matrix4D spinRear  = Matrix4D::rotationX(pickup.wheelSpinRear);
-    pickup.modelWheelFL =
-        world *
-        Matrix4D::translation({frontWheelX, frontR, -wheelTrack / 2.0f}) *
-        Matrix4D::rotationZ(to_radians(90.0f)) *           // Zylinder von Y auf X kippen
-        Matrix4D::rotationX(pickup.steeringAngle) *        // Lenkung (um die lokale X-Achse)
-        Matrix4D::rotationX(pickup.wheelSpinFront) *       // Rollbewegung
-        wheelFScale;
-
-    // Vorderachse rechts
-    pickup.modelWheelFR =
-        world *
-        Matrix4D::translation({frontWheelX, frontR, wheelTrack / 2.0f}) *
-        Matrix4D::rotationZ(to_radians(90.0f)) *
-        Matrix4D::rotationX(pickup.steeringAngle) *
-        Matrix4D::rotationX(pickup.wheelSpinFront) *
-        wheelFScale;
-
-    // Hinterachse links
-    pickup.modelWheelRL =
-        world *
-        Matrix4D::translation({rearWheelX, rearR, -wheelTrack / 2.0f}) *
-        Matrix4D::rotationZ(to_radians(90.0f)) *
-        Matrix4D::rotationX(pickup.wheelSpinRear) *
-        wheelRScale;
-
-    // Hinterachse rechts
-    pickup.modelWheelRR =
-        world *
-        Matrix4D::translation({rearWheelX, rearR, wheelTrack / 2.0f}) *
-        Matrix4D::rotationZ(to_radians(90.0f)) *
-        Matrix4D::rotationX(pickup.wheelSpinRear) *
-        wheelRScale;
-
-        // Ersatzrad bleibt statisch am Heck
-        float spareX = -pickup.baseLength - thickness;
-        float spareY = pickup.baseY + pickup.baseHeight * 0.6f;
-        Matrix4D spareRot = Matrix4D::rotationX(to_radians(90.0f));
-
-    pickup.modelSpare =
-        world *
-        Matrix4D::translation({spareX, spareY, 0.0f}) *
-        spareRot *
-        wheelFScale;
-}
+/* -------------------------------------------------------
+ * Pickup erstellen: Geometrie + lokale Modelmatrizen
+ * ----------------------------------------------------- */
 
 Pickup pickupCreate(const Vector4D &colorBase, const Vector4D &colorCockpit, const Vector4D &colorWheels) {
     Pickup pickup;
@@ -107,7 +22,7 @@ Pickup pickupCreate(const Vector4D &colorBase, const Vector4D &colorCockpit, con
 
     // Rad-Parameter
     pickup.wheelBaseHalf     = pickup.baseLength / 2.0f;
-    pickup.wheelTrack        = pickup.baseWidth + 1.9f;
+    pickup.wheelTrack        = pickup.baseWidth + 2.0f; // Weiter außen
     pickup.frontWheelRadius  = 0.7f;
     pickup.rearWheelRadius   = 1.0f;
     pickup.wheelThickness    = 0.2f;
@@ -115,61 +30,180 @@ Pickup pickupCreate(const Vector4D &colorBase, const Vector4D &colorCockpit, con
     pickup.wheelBase = 2.0f * pickup.wheelBaseHalf;
     pickup.width     = pickup.wheelTrack;
 
-    // Dynamischer Zustand initial
-    pickup.position        = {0.0f, 0.0f, 0.0f};
-    pickup.rotationY       = 0.0f;
-    pickup.steeringAngle   = 0.0f;
-    pickup.wheelSpinFront  = 0.0f;
-    pickup.wheelSpinRear   = 0.0f;
+    // Globale Transformationsmatrix: Start bei Identität an Weltursprung
+    pickup.vehicleTransform = Matrix4D::identity();
+
+    // Initialisiere Radrotationen
+    pickup.wheelRotationAngle = 0.0f;
+    pickup.wheelSteeringAngle = 0.0f;
 
     // Meshes
-    pickup.base     = meshCreate(cube::vertexPos, cube::indices, colorBase, GL_STATIC_DRAW, GL_STATIC_DRAW);
-    pickup.cockpit  = meshCreate(cube::vertexPos, cube::indices, colorCockpit, GL_STATIC_DRAW, GL_STATIC_DRAW);
-    pickup.wheelFL  = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels, GL_STATIC_DRAW, GL_STATIC_DRAW);
-    pickup.wheelFR  = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels, GL_STATIC_DRAW, GL_STATIC_DRAW);
-    pickup.wheelRL  = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels, GL_STATIC_DRAW, GL_STATIC_DRAW);
-    pickup.wheelRR  = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels, GL_STATIC_DRAW, GL_STATIC_DRAW);
-    pickup.spare    = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels, GL_STATIC_DRAW, GL_STATIC_DRAW);
+    pickup.base     = meshCreate(cube::vertexPos,     cube::indices,     colorBase,    GL_STATIC_DRAW, GL_STATIC_DRAW);
+    pickup.cockpit  = meshCreate(cube::vertexPos,     cube::indices,     colorCockpit, GL_STATIC_DRAW, GL_STATIC_DRAW);
+    pickup.wheelFL  = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels,  GL_STATIC_DRAW, GL_STATIC_DRAW);
+    pickup.wheelFR  = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels,  GL_STATIC_DRAW, GL_STATIC_DRAW);
+    pickup.wheelRL  = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels,  GL_STATIC_DRAW, GL_STATIC_DRAW);
+    pickup.wheelRR  = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels,  GL_STATIC_DRAW, GL_STATIC_DRAW);
+    pickup.spare    = meshCreate(cylinder::vertexPos, cylinder::indices, colorWheels,  GL_STATIC_DRAW, GL_STATIC_DRAW);
 
-    // Initiale Modelmatrizen basierend auf obigen Werten
-    pickupBuildModelMatrices(pickup);
+    // ---------- lokale Modelmatrizen (im Pickup-eigenen Koordinatensystem) ----------
+
+    // Base
+    pickup.modelBaseLocal =
+        Matrix4D::translation({0.0f, pickup.baseY, 0.0f}) *
+        Matrix4D::scale(pickup.baseLength, pickup.baseHeight, pickup.baseWidth);
+
+    // Cockpit
+    float cockpitX = pickup.baseLength / 4.0f;
+    float cockpitY = pickup.baseY + pickup.baseHeight + 1.0f;
+    pickup.modelCockpitLocal =
+        Matrix4D::translation({cockpitX, cockpitY, 0.0f}) *
+        Matrix4D::scale(1.0f, 1.0f, pickup.baseWidth);
+
+    // Räder - Basispositionen ohne Rotation
+    float wheelBaseHalf = pickup.wheelBaseHalf;
+    float wheelTrack    = pickup.wheelTrack;
+
+    // Positionen korrigiert - näher am Auto und auf richtiger Höhe
+    float frontWheelX = wheelBaseHalf * 1.3f;
+    float rearWheelX  = -wheelBaseHalf * 0.8f;
+
+    float frontR    = pickup.frontWheelRadius;
+    float rearR     = pickup.rearWheelRadius;
+    float thickness = pickup.wheelThickness;
+
+    // Einfache und klare Rad-Transformation:
+    // Zylinder wird um Y-Achse gedreht, um ihn flach zu legen
+    // Dann wird er entlang X gestreckt für die Dicke
+    Matrix4D wheelRot = Matrix4D::rotationY(to_radians(90.0f));
+    Matrix4D wheelFScale = Matrix4D::scale(thickness, frontR, frontR);
+    Matrix4D wheelRScale = Matrix4D::scale(thickness, rearR, rearR);
+
+    // Radhöhe korrigiert - Räder sollen auf dem Boden stehen
+    float wheelY = pickup.frontWheelRadius; // Räder stehen auf y=0 + Radius
+
+    // Vorderräder Basispositionen - weiter außen
+    pickup.modelWheelFLBase =
+        Matrix4D::translation({frontWheelX, wheelY, -wheelTrack / 2.0f}) *
+        wheelRot * wheelFScale;
+
+    pickup.modelWheelFRBase =
+        Matrix4D::translation({frontWheelX, wheelY, wheelTrack / 2.0f}) *
+        wheelRot * wheelFScale;
+
+    // Hinterräder Basispositionen - weiter außen
+    pickup.modelWheelRLBase =
+        Matrix4D::translation({rearWheelX, wheelY, -wheelTrack / 2.0f}) *
+        wheelRot * wheelRScale;
+
+    pickup.modelWheelRRBase =
+        Matrix4D::translation({rearWheelX, wheelY, wheelTrack / 2.0f}) *
+        wheelRot * wheelRScale;
+
+        // Ersatzrad – horizontal auf der Ladefläche am Heck
+float spareX = -pickup.baseLength * 1.0f - pickup.wheelThickness;
+float spareY = pickup.frontWheelRadius + 2.0f;
+float spareZ = 0.0f;
+
+// Nur um X rotieren für querstehenden Reifen
+Matrix4D spareRot = Matrix4D::rotationX(to_radians(90.0f));
+
+pickup.modelSpareLocal =
+    Matrix4D::translation({spareX, spareY, spareZ}) *
+    spareRot *
+    Matrix4D::scale(pickup.wheelThickness, pickup.frontWheelRadius, pickup.frontWheelRadius);
 
     return pickup;
 }
 
+/* -------------------------------------------------------
+ * Zeichnen: vehicleTransform * lokaleModelMatrix
+ * ----------------------------------------------------- */
+
 void pickupDraw(const Pickup &pickup, ShaderProgram &shader) {
+    const Matrix4D &W = pickup.vehicleTransform;
+
     // Base
-    shaderUniform(shader, "uModel", pickup.modelBase);
+    shaderUniform(shader, "uModel", W * pickup.modelBaseLocal);
     glBindVertexArray(pickup.base.vao);
     glDrawElements(GL_TRIANGLES, pickup.base.size_ibo, GL_UNSIGNED_INT, nullptr);
 
     // Cockpit
-    shaderUniform(shader, "uModel", pickup.modelCockpit);
+    shaderUniform(shader, "uModel", W * pickup.modelCockpitLocal);
     glBindVertexArray(pickup.cockpit.vao);
     glDrawElements(GL_TRIANGLES, pickup.cockpit.size_ibo, GL_UNSIGNED_INT, nullptr);
 
-    // Räder
-    shaderUniform(shader, "uModel", pickup.modelWheelFL);
-    glBindVertexArray(pickup.wheelFL.vao);
-    glDrawElements(GL_TRIANGLES, pickup.wheelFL.size_ibo, GL_UNSIGNED_INT, nullptr);
+    // --- Radrotationen ---
+    Matrix4D roll = Matrix4D::rotationX(pickup.wheelRotationAngle);
+    Matrix4D steering = Matrix4D::rotationY(pickup.wheelSteeringAngle);
+    Matrix4D wheelTilt = Matrix4D::rotationY(to_radians(90.0f)); // Zylinder-Achse anpassen
 
-    shaderUniform(shader, "uModel", pickup.modelWheelFR);
-    glBindVertexArray(pickup.wheelFR.vao);
-    glDrawElements(GL_TRIANGLES, pickup.wheelFR.size_ibo, GL_UNSIGNED_INT, nullptr);
+    // --- Vorderräder ---
+    float wheelTrack = pickup.wheelTrack;
+    float wheelBaseHalf = pickup.wheelBaseHalf;
+    float wheelY = pickup.frontWheelRadius;
+    float frontWheelX = wheelBaseHalf * 1.3f;
+    float thickness = pickup.wheelThickness;
+    float frontR = pickup.frontWheelRadius;
 
-    shaderUniform(shader, "uModel", pickup.modelWheelRL);
-    glBindVertexArray(pickup.wheelRL.vao);
-    glDrawElements(GL_TRIANGLES, pickup.wheelRL.size_ibo, GL_UNSIGNED_INT, nullptr);
+    // Gemeinsame Skalierung
+    Matrix4D scaleF = Matrix4D::scale(thickness, frontR, frontR);
 
-    shaderUniform(shader, "uModel", pickup.modelWheelRR);
-    glBindVertexArray(pickup.wheelRR.vao);
-    glDrawElements(GL_TRIANGLES, pickup.wheelRR.size_ibo, GL_UNSIGNED_INT, nullptr);
+    // Linkes Vorderrad
+    {
+        Matrix4D local =
+            Matrix4D::translation({frontWheelX, wheelY, -wheelTrack / 2.0f}) *
+            steering * wheelTilt * roll * scaleF;
+        shaderUniform(shader, "uModel", W * local);
+        glBindVertexArray(pickup.wheelFL.vao);
+        glDrawElements(GL_TRIANGLES, pickup.wheelFL.size_ibo, GL_UNSIGNED_INT, nullptr);
+    }
 
-    // Ersatzrad
-    shaderUniform(shader, "uModel", pickup.modelSpare);
+    // Rechtes Vorderrad
+    {
+        Matrix4D local =
+            Matrix4D::translation({frontWheelX, wheelY,  wheelTrack / 2.0f}) *
+            steering * wheelTilt * roll * scaleF;
+        shaderUniform(shader, "uModel", W * local);
+        glBindVertexArray(pickup.wheelFR.vao);
+        glDrawElements(GL_TRIANGLES, pickup.wheelFR.size_ibo, GL_UNSIGNED_INT, nullptr);
+    }
+
+    // --- Hinterräder ---
+    float rearWheelX = -wheelBaseHalf * 0.8f;
+    float rearR = pickup.rearWheelRadius;
+    Matrix4D scaleR = Matrix4D::scale(thickness, rearR, rearR);
+
+    // Links hinten
+    {
+        Matrix4D local =
+            Matrix4D::translation({rearWheelX, rearR, -wheelTrack / 2.0f}) *
+            wheelTilt * roll * scaleR;
+        shaderUniform(shader, "uModel", W * local);
+        glBindVertexArray(pickup.wheelRL.vao);
+        glDrawElements(GL_TRIANGLES, pickup.wheelRL.size_ibo, GL_UNSIGNED_INT, nullptr);
+    }
+
+    // Rechts hinten
+    {
+        Matrix4D local =
+            Matrix4D::translation({rearWheelX, rearR,  wheelTrack / 2.0f}) *
+            wheelTilt * roll * scaleR;
+        shaderUniform(shader, "uModel", W * local);
+        glBindVertexArray(pickup.wheelRR.vao);
+        glDrawElements(GL_TRIANGLES, pickup.wheelRR.size_ibo, GL_UNSIGNED_INT, nullptr);
+    }
+
+    // --- Ersatzrad ---
+    shaderUniform(shader, "uModel", W * pickup.modelSpareLocal);
     glBindVertexArray(pickup.spare.vao);
     glDrawElements(GL_TRIANGLES, pickup.spare.size_ibo, GL_UNSIGNED_INT, nullptr);
 }
+
+
+/* -------------------------------------------------------
+ * Ressourcen freigeben
+ * ----------------------------------------------------- */
 
 void pickupDelete(Pickup &pickup) {
     meshDelete(pickup.base);
@@ -180,6 +214,10 @@ void pickupDelete(Pickup &pickup) {
     meshDelete(pickup.wheelRR);
     meshDelete(pickup.spare);
 }
+
+/* -------------------------------------------------------
+ * Bewegung + Rotation mit Radbewegungen
+ * ----------------------------------------------------- */
 
 void pickupUpdate(
     Pickup &pickup,
@@ -192,53 +230,83 @@ void pickupUpdate(
     bool turnLeft,
     bool turnRight
 ) {
-    // 1) Fahr-Richtung (vor/zurück)
     float dir = 0.0f;
     if (moveForward)  dir += 1.0f;
     if (moveBackward) dir -= 1.0f;
 
-    float distance = dir * moveSpeed * dt; // zurückgelegte Strecke dieses Frames
+    float distance = dir * moveSpeed * dt;
 
-    // 2) Lenkrichtung
-    int steeringSign = 0;
-    if (turnLeft)  steeringSign += 1;
-    if (turnRight) steeringSign -= 1;
+    int turnSign = 0;
+    if (turnLeft)  turnSign += 1;
+    if (turnRight) turnSign -= 1;
 
-    // Front-Räder sofort auf ±maxSteeringAngle stellen (oder 0)
-    if (steeringSign != 0) {
-        pickup.steeringAngle = steeringSign * maxSteeringAngleRad;
-    } else {
-        pickup.steeringAngle = 0.0f;
-    }
-
-    // 3) Fahrzeug dreht sich, wenn gelenkt wird UND wir uns bewegen
-    if (steeringSign != 0 && std::fabs(distance) > 1e-6f) {
-        // turningAnglePerMeterDeg: [deg pro Meter]
-        float headingChangeDeg = steeringSign * turningAnglePerMeterDeg * distance;
-        pickup.rotationY += to_radians(headingChangeDeg);
-    }
-
-    // 4) Vorwärts-Vektor (Achtung: Pickup zeigt in +X-Richtung!)
-    // yaw = 0 => Vorwärts = (1, 0, 0)
-    Vector3D forward = {
-        std::cos(pickup.rotationY),
-        0.0f,
-        std::sin(pickup.rotationY)
-    };
-
-    // 5) Position aktualisieren
-    pickup.position += forward * distance;
-
-    // 6) Radrotation (Drehung um Umfang)
-    // α = Δx / r
+    // Radrotation basierend auf zurückgelegter Strecke
     if (std::fabs(distance) > 1e-6f) {
-        float spinDeltaFront = distance / pickup.frontWheelRadius;
-        float spinDeltaRear  = distance / pickup.rearWheelRadius;
-
-        pickup.wheelSpinFront += spinDeltaFront;
-        pickup.wheelSpinRear  += spinDeltaRear;
+        // Umfang = 2 * π * Radius, Winkel = (Strecke / Umfang) * 2π
+        float circumferenceFront = 2.0f * M_PI * pickup.frontWheelRadius;
+        float rotationAngle = (distance / circumferenceFront) * 2.0f * M_PI;
+        
+        pickup.wheelRotationAngle += rotationAngle;
+        
+        // Winkel auf sinnvollen Bereich beschränken
+        if (pickup.wheelRotationAngle > 2.0f * M_PI) {
+            pickup.wheelRotationAngle -= 2.0f * M_PI;
+        } else if (pickup.wheelRotationAngle < -2.0f * M_PI) {
+            pickup.wheelRotationAngle += 2.0f * M_PI;
+        }
     }
 
-    // 7) Alle Modelmatrizen wieder neu aus Zustand bauen
-    pickupBuildModelMatrices(pickup);
+    // Lenkung aktualisieren - stärkere und schnellere Lenkung
+    if (turnSign != 0) {
+        float steeringChange = turnSign * maxSteeringAngleRad * 4.0f * dt; // Viel stärkere Lenkung
+        pickup.wheelSteeringAngle += steeringChange;
+        
+        // Lenkwinkel begrenzen
+        if (pickup.wheelSteeringAngle > maxSteeringAngleRad) {
+            pickup.wheelSteeringAngle = maxSteeringAngleRad;
+        } else if (pickup.wheelSteeringAngle < -maxSteeringAngleRad) {
+            pickup.wheelSteeringAngle = -maxSteeringAngleRad;
+        }
+    } else {
+        // Lenkung zurückstellen (Centerung)
+        if (std::fabs(pickup.wheelSteeringAngle) > 0.01f) {
+            pickup.wheelSteeringAngle *= 0.8f; // Schnelleres Zurückstellen
+        } else {
+            pickup.wheelSteeringAngle = 0.0f;
+        }
+    }
+
+    // 1) Zuerst Translation in lokaler +X-Richtung (Fahrtrichtung)
+    if (std::fabs(distance) > 1e-6f) {
+        Matrix4D T = Matrix4D::translation({distance, 0.0f, 0.0f});
+        pickup.vehicleTransform = pickup.vehicleTransform * T;
+    }
+
+    // 2) Rotation um die lokale Y-Achse (Lenkung) – hängt von zurückgelegter Distanz ab
+    if (turnSign != 0 && std::fabs(distance) > 1e-6f) {
+        float headingChangeDeg = turningAnglePerMeterDeg * distance * static_cast<float>(turnSign);
+        float headingChangeRad = to_radians(headingChangeDeg);
+        
+        // Rotation um die lokale Y-Achse durch Rechtsmultiplikation
+        Matrix4D R = Matrix4D::rotationY(headingChangeRad);
+        pickup.vehicleTransform = pickup.vehicleTransform * R;
+    }
+}
+
+/* -------------------------------------------------------
+ * Hilfsfunktion: Fahrzeugposition aus Transformationsmatrix
+ * (für Kamera-Follow)
+ * ----------------------------------------------------- */
+
+Vector3D pickupGetWorldPosition(const Pickup &pickup) {
+    const Matrix4D &M = pickup.vehicleTransform;
+
+    // Ursprungsvektor in homogenen Koordinaten (x, y, z, w = 1)
+    Vector4D origin4(0.0f, 0.0f, 0.0f, 1.0f);
+
+    // Transformiere den Ursprung mit der Fahrzeugmatrix
+    Vector4D worldPos4 = M * origin4;
+
+    // Ergebnis zurück als 3D-Vektor (xyz)
+    return Vector3D(worldPos4.x, worldPos4.y, worldPos4.z);
 }
