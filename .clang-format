@@ -20,7 +20,7 @@ IndentWidth: 4
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 2
 NamespaceIndentation: Inner
-PointerAlignment: Left
+PointerAlignment: Right
 QualifierAlignment: Left
 SpaceAfterCStyleCast: false
 SpaceInEmptyParentheses: false
