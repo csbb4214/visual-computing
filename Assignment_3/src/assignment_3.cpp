@@ -7,30 +7,17 @@
 #include "mygl/shader.h"
 
 #include "ground.h"
+#include "pickup.h"
 
 /* struct holding all necessary state variables for scene */
 struct {
-    /* camera */
     Camera camera;
     bool cameraFollowPickup;
     float zoomSpeedMultiplier;
 
-    /* game objects */
     Ground ground;
-    Mesh cubeMesh;
-    Mesh cylinderMesh;
-    
-    /* transformation matrices */
-    Matrix4D cubeScalingMatrix;
-    Matrix4D cubeTranslationMatrix;
-    Matrix4D cubeTransformationMatrix;
-    Matrix4D cylinderScalingMatrix;
-    Matrix4D cylinderTranslationMatrix;
-    Matrix4D cylinderTransformationMatrix;
+    Pickup pickup;
 
-    float cubeSpinRadPerSecond;
-
-    /* shader */
     ShaderProgram shaderColor;
 } sScene;
 
@@ -120,22 +107,16 @@ void sceneInit(float width, float height) {
     sScene.camera = cameraCreate(width, height, to_radians(45.0f), 0.01f, 500.0f, {12.0f, 4.0f, -12.0f});
     sScene.cameraFollowPickup = false;
     sScene.zoomSpeedMultiplier = 0.05f;
-    
+
+    /* Colors */
+    Vector3D colorGround = {0.15f, 0.45f, 0.15f};
+    Vector4D colorBase = {0.1f, 0.1f, 0.5f, 1.0f};
+    Vector4D colorCockpit = {0.1f, 0.1f, 0.8f, 1.0f};
+    Vector4D colorWheels = {0.15f, 0.15f, 0.15f, 1.0f};
+
     /* setup objects in scene and create opengl buffers for meshes */
-    sScene.ground = groundCreate({0.15f, 0.45f, 0.15f});
-    sScene.cubeMesh = meshCreate(cube::vertices, cube::indices, GL_STATIC_DRAW, GL_STATIC_DRAW);
-    sScene.cylinderMesh = meshCreate(cylinder::vertexPos, cylinder::indices, {0.3f, 0.3f, 0.3f, 1.0f}, GL_STATIC_DRAW, GL_STATIC_DRAW);
-    
-    /* setup transformation matrices for objects */
-    sScene.cubeScalingMatrix = Matrix4D::scale(2.0f, 2.0f, 2.0f);
-    sScene.cubeTranslationMatrix = Matrix4D::translation({2.0f, 3.0f, 0.0f});
-    sScene.cubeTransformationMatrix = Matrix4D::identity();
-
-    sScene.cylinderScalingMatrix = Matrix4D::identity();
-    sScene.cylinderTranslationMatrix = Matrix4D::translation({-2.0f, 3.0f, 0.0f});
-    sScene.cylinderTransformationMatrix = Matrix4D::identity();
-
-    sScene.cubeSpinRadPerSecond = M_PI / 2.0f;
+    sScene.ground = groundCreate(colorGround);
+    sScene.pickup = pickupCreate(colorBase, colorCockpit, colorWheels);
 
     /* load shader from file */
     sScene.shaderColor = shaderLoad("shader/default.vert", "shader/default.frag");
@@ -161,41 +142,28 @@ void sceneUpdate(float dt) {
 
     /* udpate cube transformation matrix to include new rotation if one of the keys was pressed */
     if (rotationDirX != 0 || rotationDirY != 0) {
-        sScene.cubeTransformationMatrix = Matrix4D::rotationY(rotationDirY * sScene.cubeSpinRadPerSecond * dt) * Matrix4D::rotationX(rotationDirX * sScene.cubeSpinRadPerSecond * dt) * sScene.cubeTransformationMatrix;
+        // sScene.cubeTransformationMatrix = Matrix4D::rotationY(rotationDirY * sScene.cubeSpinRadPerSecond * dt) * Matrix4D::rotationX(rotationDirX * sScene.cubeSpinRadPerSecond * dt) * sScene.cubeTransformationMatrix;
     }
 }
 
 /* function to draw all objects in the scene */
 void sceneDraw() {
-    /* clear framebuffer color */
     glClearColor(135.0f / 255, 206.0f / 255, 235.0f / 255, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    glUseProgram(sScene.shaderColor.id);
+    shaderUniform(sScene.shaderColor, "uProj", cameraProjection(sScene.camera));
+    shaderUniform(sScene.shaderColor, "uView", cameraView(sScene.camera));
 
-    /*------------ render scene -------------*/
-    /* use shader and set the uniforms (names match the ones in the shader) */
-    {
-        glUseProgram(sScene.shaderColor.id);
-        shaderUniform(sScene.shaderColor, "uProj", cameraProjection(sScene.camera));
-        shaderUniform(sScene.shaderColor, "uView", cameraView(sScene.camera));
+    // Draw ground
+    shaderUniform(sScene.shaderColor, "uModel", Matrix4D::identity());
+    glBindVertexArray(sScene.ground.mesh.vao);
+    glDrawElements(GL_TRIANGLES, sScene.ground.mesh.size_ibo, GL_UNSIGNED_INT, nullptr);
 
-        /* draw ground */
-        shaderUniform(sScene.shaderColor, "uModel", Matrix4D::identity());
-        glBindVertexArray(sScene.ground.mesh.vao);
-        glDrawElements(GL_TRIANGLES, sScene.ground.mesh.size_ibo, GL_UNSIGNED_INT, nullptr);
+    // Draw pickup
+    pickupDraw(sScene.pickup, sScene.shaderColor);
 
-        /* draw cube, requires to calculate the final model matrix from all transformations */
-        shaderUniform(sScene.shaderColor, "uModel", sScene.cubeTranslationMatrix * sScene.cubeTransformationMatrix * sScene.cubeScalingMatrix);
-        glBindVertexArray(sScene.cubeMesh.vao);
-        glDrawElements(GL_TRIANGLES, sScene.cubeMesh.size_ibo, GL_UNSIGNED_INT, nullptr);
-
-        /* draw cylinder */
-        shaderUniform(sScene.shaderColor, "uModel", sScene.cylinderTranslationMatrix * sScene.cylinderTransformationMatrix * sScene.cylinderScalingMatrix);
-        glBindVertexArray(sScene.cylinderMesh.vao);
-        glDrawElements(GL_TRIANGLES, sScene.cylinderMesh.size_ibo, GL_UNSIGNED_INT, nullptr);
-    }
     glCheckError();
-
-    /* cleanup opengl state */
     glBindVertexArray(0);
     glUseProgram(0);
 }
@@ -247,6 +215,7 @@ int main(int argc, char **argv) {
     /* delete opengl shader and buffers */
     shaderDelete(sScene.shaderColor);
     groundDelete(sScene.ground);
+    pickupDelete(sScene.pickup);
 
     /* cleanup glfw/glcontext */
     windowDelete(window);
