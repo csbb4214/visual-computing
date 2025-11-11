@@ -30,16 +30,16 @@ Pickup pickupCreate(const Vector4D &colorBase, const Vector4D &colorCockpit, con
 
     // Cockpit (front part, stacked on top of base)
     float cockpitX = pickup.baseLength / 4.0f;
-    float cockpitY = pickup.baseY + pickup.baseHeight + 0.5f;
+    float cockpitY = pickup.baseY + pickup.baseHeight + 1.0f;
     pickup.modelCockpit = Matrix4D::translation({cockpitX, cockpitY, 0}) * 
                           Matrix4D::scale(1, 1, pickup.baseWidth);
 
     // Calculate wheel positions
     float wheelBaseHalf = pickup.baseLength / 2.0f;
-    float wheelTrack = pickup.baseWidth + 0.4f;
+    float wheelTrack = pickup.baseWidth + 1.9f;
 
-    float frontWheelX = wheelBaseHalf * 0.625f;
-    float rearWheelX = -wheelBaseHalf * 0.5f;
+    float frontWheelX = wheelBaseHalf * 1.4f;
+    float rearWheelX = -wheelBaseHalf * 1.0f;
 
     float frontWheelRadius = 0.7f;
     float rearWheelRadius = 1.0f;
@@ -58,9 +58,9 @@ Pickup pickupCreate(const Vector4D &colorBase, const Vector4D &colorCockpit, con
                           wheelRot * wheelRScale;
     pickup.modelWheelRR = Matrix4D::translation({rearWheelX, rearWheelRadius, wheelTrack / 2.0f}) * 
                           wheelRot * wheelRScale;
-    
+
     // Spare wheel
-    float spareX = -wheelBaseHalf - 0.2f;
+    float spareX = -pickup.baseLength - wheelThickness;
     float spareY = pickup.baseY + pickup.baseHeight * 0.6f;
     Matrix4D spareRot = Matrix4D::rotationX(to_radians(90.0f));
     pickup.modelSpare = Matrix4D::translation({spareX, spareY, 0.0f}) * 
