@@ -65,6 +65,18 @@ void callbackKey(GLFWwindow *window, int key, int scancode, int action, int mods
     if (key == GLFW_KEY_D) {
         sInput.buttonPressed[3] = (action == GLFW_PRESS || action == GLFW_REPEAT);
     }
+
+    /* camera mode 1*/
+    if (key == GLFW_KEY_1 && action == GLFW_PRESS) {
+        sScene.cameraFollowPickup = false;
+        sScene.camera.lookAt = {0.0f, 0.0f, 0.0f};
+    }
+
+
+    /* camera mode 2*/
+    if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
+        sScene.cameraFollowPickup = true;
+    }
 }
 
 /* GLFW callback function for mouse position events */
@@ -105,6 +117,8 @@ void sceneInit(float width, float height) {
     
     /* initialize camera */
     sScene.camera = cameraCreate(width, height, to_radians(45.0f), 0.01f, 500.0f, {12.0f, 4.0f, -12.0f});
+    /* set camera at the origin of the world coordinate system*/
+    sScene.camera.lookAt = {0.0f, 0.0f, 0.0f};
     sScene.cameraFollowPickup = false;
     sScene.zoomSpeedMultiplier = 0.05f;
 
@@ -143,6 +157,13 @@ void sceneUpdate(float dt) {
     /* udpate cube transformation matrix to include new rotation if one of the keys was pressed */
     if (rotationDirX != 0 || rotationDirY != 0) {
         // sScene.cubeTransformationMatrix = Matrix4D::rotationY(rotationDirY * sScene.cubeSpinRadPerSecond * dt) * Matrix4D::rotationX(rotationDirX * sScene.cubeSpinRadPerSecond * dt) * sScene.cubeTransformationMatrix;
+    }
+
+    /* if camera mode 2 is activated, set the camera to the pos of the pickup*/
+    if (sScene.cameraFollowPickup) {
+    // Vector3D pickupPos = getPickupWorldPosition();
+    Vector3D pickupPos = {2.0f, 3.0f, 0.0f}; // pos of the cube for testing
+    sScene.camera.lookAt = pickupPos;
     }
 }
 
