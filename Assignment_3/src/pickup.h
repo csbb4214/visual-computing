@@ -14,11 +14,11 @@ struct Pickup {
     Matrix4D modelWheelFL, modelWheelFR, modelWheelRL, modelWheelRR;
     Matrix4D modelSpare;
 
-    // Truck dimensions (derived from base)
+    // Dimensions
     float baseLength;    // 4.0
     float baseHeight;    // 1.0
     float baseWidth;     // 1.5
-    float baseY;         // 2.0 (center Y position)
+    float baseY;         // 2.0
 };
 
 /* Create a pickup truck with specified colors */

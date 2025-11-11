@@ -28,10 +28,10 @@ Pickup pickupCreate(const Vector4D &colorBase, const Vector4D &colorCockpit, con
     pickup.modelBase = Matrix4D::translation({0, pickup.baseY, 0}) * 
                        Matrix4D::scale(pickup.baseLength, pickup.baseHeight, pickup.baseWidth);
 
-    // Cockpit (front part, stacked on top of base)
+    // Cockpit
     float cockpitX = pickup.baseLength / 4.0f;
     float cockpitY = pickup.baseY + pickup.baseHeight + 1.0f;
-    pickup.modelCockpit = Matrix4D::translation({cockpitX, cockpitY, 0}) * 
+    pickup.modelCockpit = Matrix4D::translation({cockpitX, cockpitY, 0}) *
                           Matrix4D::scale(1, 1, pickup.baseWidth);
 
     // Calculate wheel positions
