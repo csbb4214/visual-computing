@@ -4,7 +4,7 @@
 
 #include "mygl/mesh.h"
 #include "mygl/shader.h"
-
+#include "ground.h"
 #include "pickup.h"
 
 /* -------------------------------------------------------
@@ -309,4 +309,127 @@ Vector3D pickupGetWorldPosition(const Pickup &pickup) {
 
     // Ergebnis zurück als 3D-Vektor (xyz)
     return Vector3D(worldPos4.x, worldPos4.y, worldPos4.z);
+
+    
+}
+
+void pickupAdjustToTerrain(Pickup &pickup, const Ground &ground) {
+    // Lokale Aufstandspunkte der Räder (im Pickup-Koordinatensystem)
+    float frontWheelX = pickup.wheelBaseHalf * 1.3f;
+    float rearWheelX  = -pickup.wheelBaseHalf * 0.8f;
+    float wheelY = pickup.frontWheelRadius;
+    float wheelTrack = pickup.wheelTrack;
+
+    Vector3D localWheelFL = Vector3D(frontWheelX, wheelY, -wheelTrack/2.0f);
+    Vector3D localWheelFR = Vector3D(frontWheelX, wheelY,  wheelTrack/2.0f);
+    Vector3D localWheelRL = Vector3D(rearWheelX,  wheelY, -wheelTrack/2.0f);
+    Vector3D localWheelRR = Vector3D(rearWheelX,  wheelY,  wheelTrack/2.0f);
+
+    // Transformiere lokale Positionen in Weltkoordinaten
+    Matrix4D &M = pickup.vehicleTransform;
+    
+    // Manuelle Transformation für Vector3D (da Matrix4D * Vector3D nicht definiert ist)
+    auto transformPoint = [&M](const Vector3D &point) -> Vector3D {
+        Vector4D point4 = Vector4D(point.x, point.y, point.z, 1.0f);
+        Vector4D result = M * point4;
+        return Vector3D(result.x, result.y, result.z);
+    };
+
+    Vector3D worldWheelFL = transformPoint(localWheelFL);
+    Vector3D worldWheelFR = transformPoint(localWheelFR);
+    Vector3D worldWheelRL = transformPoint(localWheelRL);
+    Vector3D worldWheelRR = transformPoint(localWheelRR);
+
+    // Kopiere computeHeight Funktion aus ground.h
+    auto computeHeightAtPoint = [&ground](const Vector2D &p) -> float {
+        float height = 0.0f;
+        for (const auto &w : ground.waveParamsVec) {
+            height += w.amplitude * sinf(w.omega * dot(p, w.direction));
+        }
+        return height;
+    };
+
+    // Berechne Höhe des Bodens an den Radpositionen
+    float heightFL = computeHeightAtPoint(Vector2D(worldWheelFL.x, worldWheelFL.z));
+    float heightFR = computeHeightAtPoint(Vector2D(worldWheelFR.x, worldWheelFR.z));
+    float heightRL = computeHeightAtPoint(Vector2D(worldWheelRL.x, worldWheelRL.z));
+    float heightRR = computeHeightAtPoint(Vector2D(worldWheelRR.x, worldWheelRR.z));
+
+    // Durchschnittliche Höhe für die Pickup-Position
+    float averageHeight = (heightFL + heightFR + heightRL + heightRR) / 4.0f;
+
+    // Berechne Dreieck für die Rotation (zwei hintere Räder + Mitte vordere Räder)
+    Vector3D frontMid = Vector3D(
+        (worldWheelFL.x + worldWheelFR.x) * 0.5f,
+        (heightFL + heightFR) * 0.5f,
+        (worldWheelFL.z + worldWheelFR.z) * 0.5f
+    );
+    
+    Vector3D rearLeft = Vector3D(worldWheelRL.x, heightRL, worldWheelRL.z);
+    Vector3D rearRight = Vector3D(worldWheelRR.x, heightRR, worldWheelRR.z);
+
+    // Berechne Vektoren für das Dreieck
+    Vector3D AB = rearRight - rearLeft;
+    Vector3D AC = frontMid - rearLeft;
+
+    // Normale des Dreiecks (zeigt nach oben)
+    Vector3D normal = cross(AC, AB);
+    
+    // Normalisiere manuell (falls keine normalized() Funktion existiert)
+    float length = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+    if (length > 0.0f) {
+        normal.x /= length;
+        normal.y /= length;
+        normal.z /= length;
+    }
+    
+    if (normal.y < 0) {
+        normal = Vector3D(-normal.x, -normal.y, -normal.z); // Stelle sicher, dass Normal nach oben zeigt
+    }
+
+    // Vorwärtsrichtung (von hinterer Mitte zu vorderer Mitte)
+    Vector3D rearMid = Vector3D(
+        (worldWheelRL.x + worldWheelRR.x) * 0.5f,
+        (heightRL + heightRR) * 0.5f,
+        (worldWheelRL.z + worldWheelRR.z) * 0.5f
+    );
+    
+    Vector3D forward = frontMid - rearMid;
+    length = sqrt(forward.x * forward.x + forward.y * forward.y + forward.z * forward.z);
+    if (length > 0.0f) {
+        forward.x /= length;
+        forward.y /= length;
+        forward.z /= length;
+    }
+
+    // Rechte Seite berechnen
+    Vector3D right = cross(normal, forward);
+    length = sqrt(right.x * right.x + right.y * right.y + right.z * right.z);
+    if (length > 0.0f) {
+        right.x /= length;
+        right.y /= length;
+        right.z /= length;
+    }
+
+    // Korrigiere Vorwärtsvektor, damit er senkrecht zur Normalen steht
+    forward = cross(right, normal);
+    length = sqrt(forward.x * forward.x + forward.y * forward.y + forward.z * forward.z);
+    if (length > 0.0f) {
+        forward.x /= length;
+        forward.y /= length;
+        forward.z /= length;
+    }
+
+    // Erstelle Rotationsmatrix aus den orthonormalen Vektoren
+    Matrix4D rotation = Matrix4D::identity();
+    rotation(0,0) = forward.x; rotation(0,1) = normal.x; rotation(0,2) = right.x;
+    rotation(1,0) = forward.y; rotation(1,1) = normal.y; rotation(1,2) = right.y;
+    rotation(2,0) = forward.z; rotation(2,1) = normal.z; rotation(2,2) = right.z;
+
+    // Aktuelle Position des Pickups
+    Vector3D currentPos = Vector3D(M(0,3), M(1,3), M(2,3));
+    currentPos.y = averageHeight;
+
+    // Setze neue Transformationsmatrix
+    pickup.vehicleTransform = Matrix4D::translation(currentPos) * rotation;
 }

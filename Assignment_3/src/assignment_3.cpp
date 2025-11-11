@@ -157,8 +157,8 @@ void sceneInit(float width, float height) {
 void sceneUpdate(float dt) {
     bool moveForward  = sInput.buttonPressed[0]; // W
     bool moveBackward = sInput.buttonPressed[1]; // S
-    bool turnLeft     = sInput.buttonPressed[2]; // A
-    bool turnRight    = sInput.buttonPressed[3]; // D
+    bool turnLeft     = sInput.buttonPressed[3]; // A
+    bool turnRight    = sInput.buttonPressed[2]; // D
 
     // Pickup-Bewegung (Aufgabe 2)
     pickupUpdate(
@@ -172,6 +172,8 @@ void sceneUpdate(float dt) {
         turnLeft,
         turnRight
     );
+
+    pickupAdjustToTerrain(sScene.pickup, sScene.ground);
 
     /* if camera mode 2 is activated, set the camera focus to the pos of the pickup*/
     if (sScene.cameraFollowPickup) {

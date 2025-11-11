@@ -64,3 +64,5 @@ void pickupUpdate(
 
 /* Optionale Hilfsfunktion: Fahrzeugposition aus vehicleTransform für Kamera-Follow */
 Vector3D pickupGetWorldPosition(const Pickup &pickup);
+
+void pickupAdjustToTerrain(Pickup &pickup, const Ground &ground);
