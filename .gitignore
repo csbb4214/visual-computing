@@ -1,28 +1,28 @@
-   # Build directories (should apply to all future assignments)
-   */build/
-   */bin/
-   */out/
-   build/
-   bin/
-   out/
+# Build directories (should apply to all future assignments)
+*/build/
+*/bin/
+*/out/
+build/
+bin/
+out/
    
-   # Visual Studio
-   .vs/
-   **/*.user
-   **/*.suo
-   **/*.sln.docstates
+# Visual Studio
+.vs/
+**/*.user
+**/*.suo
+**/*.sln.docstates
+
+# CMake
+**/CMakeCache.txt
+**/CMakeFiles/
+**/cmake_install.cmake
+**/install_manifest.txt
    
-   # CMake
-   **/CMakeCache.txt
-   **/CMakeFiles/
-   **/cmake_install.cmake
-   **/install_manifest.txt
-   
-   # Compiled files
-   **/*.exe
-   **/*.dll
-   **/*.so
-   **/*.a
-   **/*.lib
-   **/*.obj
-   **/*.o
+# Compiled files
+**/*.exe
+**/*.dll
+**/*.so
+**/*.a
+**/*.lib
+**/*.obj
+**/*.o
