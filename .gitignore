@@ -5,7 +5,7 @@
 build/
 bin/
 out/
-   
+
 # Visual Studio
 .vs/
 **/*.user
@@ -17,7 +17,7 @@ out/
 **/CMakeFiles/
 **/cmake_install.cmake
 **/install_manifest.txt
-   
+
 # Compiled files
 **/*.exe
 **/*.dll
