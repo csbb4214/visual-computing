@@ -245,98 +245,76 @@ void pickupUpdate(
 }
 
 void pickupAdjustToTerrain(Pickup &pickup, const Ground &ground) {
+    // helper lambda to normalize a Vector3D
+    auto normalize = [](Vector3D v) {
+        float len = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+        return len > 0.0f ? v / len : v;
+    };
 
+    // Define wheel positions in local space
     float frontWheelX = pickup.wheelBaseHalf * 1.3f;
     float rearWheelX  = -pickup.wheelBaseHalf * 0.8f;
     float wheelY = pickup.frontWheelRadius;
+    float halfTrack = pickup.wheelTrack * 0.5f;
 
-    float wheelTrack = pickup.wheelTrack;
-
-    // Local wheel contact points
-    Vector3D localWheelFL(frontWheelX, wheelY, -wheelTrack/2.0f);
-    Vector3D localWheelFR(frontWheelX, wheelY, wheelTrack/2.0f);
-    Vector3D localWheelRL(rearWheelX,  wheelY, -wheelTrack/2.0f);
-    Vector3D localWheelRR(rearWheelX,  wheelY, wheelTrack/2.0f);
+    Vector3D localWheels[4] = {
+        {frontWheelX, wheelY, -halfTrack},  // FL
+        {frontWheelX, wheelY,  halfTrack},  // FR
+        {rearWheelX,  wheelY, -halfTrack},  // RL
+        {rearWheelX,  wheelY,  halfTrack}   // RR
+    };
 
     Matrix4D &M = pickup.vehicleTransform;
 
-    auto transformPoint = [&M](const Vector3D &p) {
-        Vector4D p4(p.x, p.y, p.z, 1.0f);
+    // Transform wheels to world space and get terrain heights
+    Vector3D worldWheels[4];
+    float heights[4];
+    float avgHeight = 0.0f;
+
+    for (int i = 0; i < 4; ++i) {
+        Vector4D p4(localWheels[i].x, localWheels[i].y, localWheels[i].z, 1.0f);
         Vector4D r = M * p4;
-        return Vector3D(r.x, r.y, r.z);
-    };
+        worldWheels[i] = {r.x, r.y, r.z};
 
-    Vector3D worldWheelFL = transformPoint(localWheelFL);
-    Vector3D worldWheelFR = transformPoint(localWheelFR);
-    Vector3D worldWheelRL = transformPoint(localWheelRL);
-    Vector3D worldWheelRR = transformPoint(localWheelRR);
-
-    // Terrain height evaluation
-    auto computeHeight = [&ground](const Vector2D &p) {
-        float height = 0.0f;
+        heights[i] = 0.0f;
         for (const auto &w : ground.waveParamsVec)
-            height += w.amplitude * sinf(w.omega * dot(p, w.direction));
-        return height;
+            heights[i] += w.amplitude * sinf(w.omega * dot({worldWheels[i].x, worldWheels[i].z}, w.direction));
+        
+        avgHeight += heights[i];
+    }
+    avgHeight *= 0.25f;
+
+    // Build orientation from wheel positions
+    Vector3D frontMid = {
+        (worldWheels[0].x + worldWheels[1].x) * 0.5f,
+        (heights[0] + heights[1]) * 0.5f,
+        (worldWheels[0].z + worldWheels[1].z) * 0.5f
     };
 
-    float hFL = computeHeight({worldWheelFL.x, worldWheelFL.z});
-    float hFR = computeHeight({worldWheelFR.x, worldWheelFR.z});
-    float hRL = computeHeight({worldWheelRL.x, worldWheelRL.z});
-    float hRR = computeHeight({worldWheelRR.x, worldWheelRR.z});
+    Vector3D rearMid = {
+        (worldWheels[2].x + worldWheels[3].x) * 0.5f,
+        (heights[2] + heights[3]) * 0.5f,
+        (worldWheels[2].z + worldWheels[3].z) * 0.5f
+    };
 
-    float avgHeight = (hFL + hFR + hRL + hRR) / 4.0f;
+    Vector3D rearLeft = {worldWheels[2].x, heights[2], worldWheels[2].z};
+    Vector3D rearRight = {worldWheels[3].x, heights[3], worldWheels[3].z};
 
-    // Build a triangle plane from rear-left, rear-right, and midpoint front
-    Vector3D frontMid(
-        (worldWheelFL.x + worldWheelFR.x) * 0.5f,
-        (hFL + hFR) * 0.5f,
-        (worldWheelFL.z + worldWheelFR.z) * 0.5f
-    );
-
-    Vector3D rearLeft(worldWheelRL.x, hRL, worldWheelRL.z);
-    Vector3D rearRight(worldWheelRR.x, hRR, worldWheelRR.z);
-
-    Vector3D AB = rearRight - rearLeft;
-    Vector3D AC = frontMid - rearLeft;
-
-    Vector3D normal = cross(AC, AB);
-
-    float len = sqrt(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
-    if (len > 0.0f) normal /= len;
-
+    // Compute orthonormal basis
+    Vector3D normal = normalize(cross(frontMid - rearLeft, rearRight - rearLeft));
     if (normal.y < 0) normal = -normal;
 
-    // Forward direction (rear midpoint → front midpoint)
-    Vector3D rearMid(
-        (worldWheelRL.x + worldWheelRR.x) * 0.5f,
-        (hRL + hRR) * 0.5f,
-        (worldWheelRL.z + worldWheelRR.z) * 0.5f
-    );
+    Vector3D forward = normalize(frontMid - rearMid);
+    Vector3D right = normalize(cross(normal, forward));
+    forward = normalize(cross(right, normal));
 
-    Vector3D forward = frontMid - rearMid;
-    len = sqrt(forward.x*forward.x + forward.y*forward.y + forward.z*forward.z);
-    if (len > 0.0f) forward /= len;
-
-    // Right = normal × forward
-    Vector3D right = cross(normal, forward);
-    len = sqrt(right.x*right.x + right.y*right.y + right.z*right.z);
-    if (len > 0.0f) right /= len;
-
-    // Recompute forward for orthogonality
-    forward = cross(right, normal);
-    len = sqrt(forward.x*forward.x + forward.y*forward.y + forward.z*forward.z);
-    if (len > 0.0f) forward /= len;
-
-    // Build rotation matrix from the three orthonormal vectors
+    // Build transform
     Matrix4D rotation = Matrix4D::identity();
     rotation(0,0) = forward.x; rotation(0,1) = normal.x; rotation(0,2) = right.x;
     rotation(1,0) = forward.y; rotation(1,1) = normal.y; rotation(1,2) = right.y;
     rotation(2,0) = forward.z; rotation(2,1) = normal.z; rotation(2,2) = right.z;
 
-    // Pickup world position (reuse X,Z, update Y to avg height)
-    Vector3D pos(M(0,3), M(1,3), M(2,3));
-    pos.y = avgHeight;
-
+    Vector3D pos(M(0,3), avgHeight, M(2,3));
     pickup.vehicleTransform = Matrix4D::translation(pos) * rotation;
 }
 
