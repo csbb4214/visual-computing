@@ -10,34 +10,34 @@ struct Pickup {
     Mesh wheelFL, wheelFR, wheelRL, wheelRR;
     Mesh spare;
 
-    // Lokale Modellmatrizen (relativ zum Pickup-Ursprung)
+    // Model matrices (relative to Pickup-origin)
     Matrix4D modelBaseLocal;
     Matrix4D modelCockpitLocal;
     Matrix4D modelWheelFLBase, modelWheelFRBase, modelWheelRLBase, modelWheelRRBase;
     Matrix4D modelSpareLocal;
 
-    // Globale Transformationsmatrix des Fahrzeugs (Weltmatrix)
+    // Global pickup transformation in world space
     Matrix4D vehicleTransform;
 
-    // Truck dimensions (aus der Basis abgeleitet)
-    float baseLength;    // 4.0
-    float baseHeight;    // 1.0
-    float baseWidth;     // 1.5
-    float baseY;         // 2.0 (center Y position)
+    // Pickup base measures
+    float baseLength;
+    float baseHeight;
+    float baseWidth;
+    float baseY;
 
-    // Rad-Parameter (für calculateTurningAnglePerMeter)
-    float wheelBaseHalf;     // halber Radstand
-    float wheelTrack;        // Abstand links–rechts
+    // Wheel measures
+    float wheelBaseHalf;
+    float wheelTrack;
     float frontWheelRadius;
     float rearWheelRadius;
     float wheelThickness;
 
-    float wheelBase;         // voller Radstand
-    float width;             // Fahrzeugbreite
+    float wheelBase;
+    float width;
 
-    // Neue Variablen für Radanimation und Lenkung
-    float wheelRotationAngle;    // Rotationswinkel aller Räder (um ihre eigene Achse)
-    float wheelSteeringAngle;    // Lenkwinkel der Vorderräder (nur Vorderräder)
+    // Wheel animations
+    float wheelRotationAngle;    // Driving animation
+    float wheelSteeringAngle;    // steering animation
 };
 
 /* Create a pickup truck with specified colors */
@@ -49,12 +49,12 @@ void pickupDelete(Pickup &pickup);
 /* Draw the entire pickup truck */
 void pickupDraw(const Pickup &pickup, ShaderProgram &shader);
 
-/* Update pickup transform based on input (Task 2) */
+/* Update pickup transform based on input */
 void pickupUpdate(
     Pickup &pickup,
     float moveSpeed,
-    float maxSteeringAngleRad,      // für Lenkbegrenzung der Vorderräder
-    float turningAnglePerMeterDeg,  // wie stark dreht der Wagen pro Meter
+    float maxSteeringAngleRad,
+    float turningAnglePerMeterDeg,
     float dt,
     bool moveForward,
     bool moveBackward,
@@ -62,7 +62,8 @@ void pickupUpdate(
     bool turnRight
 );
 
-/* Optionale Hilfsfunktion: Fahrzeugposition aus vehicleTransform für Kamera-Follow */
-Vector3D pickupGetWorldPosition(const Pickup &pickup);
-
+/* Adjust pickup to ground */
 void pickupAdjustToTerrain(Pickup &pickup, const Ground &ground);
+
+/* Helperfunction for camera follow */
+Vector3D pickupGetWorldPosition(const Pickup &pickup);

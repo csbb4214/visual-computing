@@ -18,20 +18,13 @@ struct {
     Ground ground;
     Pickup pickup;
 
-    // Fahr-Parameter (Task 2)
+    // Driving parameters
     float moveSpeed;
     float maxSteeringAngleRad;
     float turningAnglePerMeterDeg;
 
     ShaderProgram shaderColor;
 } sScene;
-
-/* calculate how much the car approximately turns per meter travelled for a given turning angle */
-float calculateTurningAnglePerMeter(float wheelBase, float turningAngle, float width) {
-    float turningRadius = wheelBase / tan(turningAngle);
-    float innerTurningRadius = turningRadius - width;
-    return 360.0f / (2.0f * innerTurningRadius * static_cast<float>(M_PI));
-}
 
 /* struct holding all state variables for input */
 struct {
@@ -113,6 +106,13 @@ void callbackWindowResize(GLFWwindow *window, int width, int height) {
     sScene.camera.height = height;
 }
 
+/* calculate how much the car approximately turns per meter travelled for a given turning angle */
+float calculateTurningAnglePerMeter(float wheelBase, float turningAngle, float width) {
+    float turningRadius = wheelBase / tan(turningAngle);
+    float innerTurningRadius = turningRadius - width;
+    return 360.0f / (2.0f * innerTurningRadius * M_PI);
+}
+
 /* function to setup and initialize the whole scene */
 void sceneInit(float width, float height) {
 
@@ -139,28 +139,23 @@ void sceneInit(float width, float height) {
     sScene.ground = groundCreate(colorGround);
     sScene.pickup = pickupCreate(colorBase, colorCockpit, colorWheels);
 
-    /* Fahr-Parameter für Aufgabe 2 */
-    sScene.moveSpeed           = 5.0f;                 // „vordefinierte Velocity“
+    /* Driving parameters */
+    sScene.moveSpeed = 5.0f;
     sScene.maxSteeringAngleRad = to_radians(30.0f);
-    sScene.turningAnglePerMeterDeg =
-        calculateTurningAnglePerMeter(
-            sScene.pickup.wheelBase,
-            sScene.maxSteeringAngleRad,
-            sScene.pickup.width
-        );
+    sScene.turningAnglePerMeterDeg = calculateTurningAnglePerMeter(sScene.pickup.wheelBase, sScene.maxSteeringAngleRad, sScene.pickup.width);
 
     /* load shader from file */
     sScene.shaderColor = shaderLoad("shader/default.vert", "shader/default.frag");
 }
 
-/* function to move and update objects in scene (e.g., move car according to user input) */
+/* function to move and update objects in scene */
 void sceneUpdate(float dt) {
     bool moveForward  = sInput.buttonPressed[0]; // W
     bool moveBackward = sInput.buttonPressed[1]; // S
     bool turnLeft     = sInput.buttonPressed[3]; // A
     bool turnRight    = sInput.buttonPressed[2]; // D
 
-    // Pickup-Bewegung (Aufgabe 2)
+    // Pickup-Movement
     pickupUpdate(
         sScene.pickup,
         sScene.moveSpeed,
@@ -173,9 +168,10 @@ void sceneUpdate(float dt) {
         turnRight
     );
 
+    // Adjust pickup to terrain
     pickupAdjustToTerrain(sScene.pickup, sScene.ground);
 
-    /* if camera mode 2 is activated, set the camera focus to the pos of the pickup*/
+    // if camera mode 2 is activated, set the camera focus to the pos of the pickup
     if (sScene.cameraFollowPickup) {
         sScene.camera.lookAt = pickupGetWorldPosition(sScene.pickup);
     }
@@ -229,7 +225,6 @@ int main(int argc, char **argv) {
     double timeStamp = glfwGetTime();
     double timeStampNew = 0.0;
 
-    /* loop until user closes window */
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
