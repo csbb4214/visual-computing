@@ -164,6 +164,9 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
         shaderUniform(shader, "isGround", false);
     }
 
+    // sqash ratio as shader uniform
+    shaderUniform(shader, "uSquashRatio", sScene.pickup.squashRatio);
+
     /* render pickup */
     for(unsigned int i = 0; i < sScene.pickup.partModel.size(); i++) {
         auto& model = sScene.pickup.partModel[i];
@@ -172,6 +175,18 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
 
         shaderUniform(shader, "uLocalModel", transform);
         shaderUniform(shader, "uModel", sScene.pickup.transformation);
+
+        // Set appropriate squash factor for each wheel
+        float squashFactor = 0.0f;
+        if (i == Pickup::ePart::WHEEL_FL || i == Pickup::ePart::WHEEL_FR) {
+            // Front wheels use frontSquashFactor
+            squashFactor = sScene.pickup.frontSquashFactor;
+        } else if (i == Pickup::ePart::WHEEL_BL || i == Pickup::ePart::WHEEL_BR) {
+            // Back wheels use backSquashFactor
+            squashFactor = sScene.pickup.backSquashFactor;
+        }
+
+        shaderUniform(shader, "uSquashFactor", squashFactor);
 
         for(auto& material : model.material) {
             if (!renderNormal) {
@@ -186,6 +201,9 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
     {
         auto& model = sScene.ground.model;
         shaderUniform(shader, "uModel", Matrix4D::identity());
+
+        // Ground doesn't get squashed
+        shaderUniform(shader, "uSquashFactor", 0.0f);
 
         glBindVertexArray(model.mesh.vao);
         for(auto& material : model.material) {
