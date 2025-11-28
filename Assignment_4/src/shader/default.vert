@@ -17,22 +17,26 @@ out vec3 tNormal;
 out vec3 tFragPos;
 
 void main(void) {
-    // Apply wheel rotation and local transformation first
+    // Apply local transformation (includes wheel rotation)
     vec4 localPosition = uLocalModel * vec4(aPosition, 1.0);
 
-    // Simple scaling-based squashing (alternative approach)
+    // Apply squash and stretch deformation
     if (uSquashFactor > 0.0) {
-        // Scale y-axis based on squash factor
-        float scaleY = 1.0 - (uSquashRatio * uSquashFactor);
-        localPosition.y *= scaleY;
+        float squashAmount = uSquashFactor * uSquashRatio;
 
-        // Compensate x and z axes to maintain volume (optional)
-        // float scaleXZ = 1.0 / sqrt(scaleY); // for volume preservation
-        // localPosition.xz *= scaleXZ;
+        // Compress vertically (scale Y toward 0)
+        localPosition.y *= (1.0 - squashAmount);
+
+        // Expand horizontally (scale XZ away from center)
+        float horizontalExpansion = 1.0 + squashAmount * 0.5;
+        localPosition.x *= horizontalExpansion;
+        localPosition.z *= horizontalExpansion;
     }
 
-    // Continue with normal transformation pipeline
-    gl_Position = uProj * uView * uModel * localPosition;
-    tFragPos = vec3(uModel * localPosition);
-    tNormal = normalize(mat3(transpose(inverse(uModel))) * mat3(transpose(inverse(uLocalModel))) * aNormal);
+    // Continue with world transformation
+    vec4 worldPosition = uModel * localPosition;
+    gl_Position = uProj * uView * worldPosition;
+
+    tFragPos = worldPosition.xyz;
+    tNormal = normalize(mat3(transpose(inverse(uModel * uLocalModel))) * aNormal);
 }
