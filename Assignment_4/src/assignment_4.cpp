@@ -35,6 +35,9 @@ struct {
     ShaderProgram shaderNormal;
 
     Matrix4D lightRotation;
+
+    /* lighting */
+    bool isDayTime;
 } sScene;
 
 /* struct holding all state variables for input */
@@ -87,6 +90,11 @@ void callbackKey(GLFWwindow *window, int key, int scancode, int action, int mods
     if (key == GLFW_KEY_R && action == GLFW_PRESS) {
         sScene.renderMode = static_cast<eRenderMode>((static_cast<int>(sScene.renderMode) + 1) % eRenderMode::MODE_COUNT);
     }
+
+    /* toggle day/night */
+    if (key == GLFW_KEY_L && action == GLFW_PRESS) {
+        sScene.isDayTime = !sScene.isDayTime;
+    }
 }
 
 /* GLFW callback function for mouse position events */
@@ -137,6 +145,7 @@ void sceneInit(float width, float height) {
     sScene.shaderNormal = shaderLoad("shader/default.vert", "shader/normal.frag");
 
     sScene.renderMode = eRenderMode::COLOR;
+    sScene.isDayTime = true;
 }
 
 /* function to move and update objects in scene (e.g., move car according to user input) */
@@ -162,6 +171,23 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
     if (renderNormal) {
         shaderUniform(shader, "uViewPos", cameraPosition(sScene.camera));
         shaderUniform(shader, "isGround", false);
+    } else {
+        // Set lighting uniforms for Blinn-Phong
+        Vector3D lightDir = {-0.3f, -1.0f, -0.5f}; // Directional light pointing down and forward
+        
+        if (sScene.isDayTime) {
+            // Day lighting - bright and warm
+            shaderUniform(shader, "uLightAmbient", Vector3D{0.3f, 0.3f, 0.35f});
+            shaderUniform(shader, "uLightDiffuse", Vector3D{0.8f, 0.8f, 0.7f});
+            shaderUniform(shader, "uLightSpecular", Vector3D{1.0f, 1.0f, 1.0f});
+        } else {
+            // Night lighting - dark and cool/bluish
+            shaderUniform(shader, "uLightAmbient", Vector3D{0.05f, 0.05f, 0.1f});
+            shaderUniform(shader, "uLightDiffuse", Vector3D{0.2f, 0.2f, 0.3f});
+            shaderUniform(shader, "uLightSpecular", Vector3D{0.3f, 0.3f, 0.4f});
+        }
+        
+        shaderUniform(shader, "uLightDir", lightDir);
     }
 
     // sqash ratio as shader uniform
@@ -192,8 +218,9 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
             if (!renderNormal) {
                 /* set material properties */
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
+                shaderUniform(shader, "uMaterial.shininess", material.shininess);
             }
-            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset * sizeof(unsigned int)) );
+            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset * sizeof(unsigned int)));
         }
     }
 
@@ -210,10 +237,11 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
             if (!renderNormal) {
                 /* set material properties */
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
+                shaderUniform(shader, "uMaterial.shininess", material.shininess);
             } else {
                 shaderUniform(shader, "isGround", true);
             }
-            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset*sizeof(unsigned int)) );
+            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset*sizeof(unsigned int)));
         }
     }
 
