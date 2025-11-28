@@ -173,20 +173,20 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
         shaderUniform(shader, "isGround", false);
     } else {
         // Set lighting uniforms for Blinn-Phong
-        Vector3D lightDir = {-0.3f, -1.0f, -0.5f}; // Directional light pointing down and forward
-        
+        Vector3D lightDir = {-0.6f, -2.0f, -1.0f}; // Directional light pointing down and forward
+
         if (sScene.isDayTime) {
-            // Day lighting - bright and warm
-            shaderUniform(shader, "uLightAmbient", Vector3D{0.3f, 0.3f, 0.35f});
-            shaderUniform(shader, "uLightDiffuse", Vector3D{0.8f, 0.8f, 0.7f});
-            shaderUniform(shader, "uLightSpecular", Vector3D{1.0f, 1.0f, 1.0f});
+            // Day lighting - brighter, warmer sunlight
+            shaderUniform(shader, "uLightAmbient", Vector3D{0.4f, 0.4f, 0.45f});   // Soft blue-ish ambient
+            shaderUniform(shader, "uLightDiffuse", Vector3D{0.9f, 0.85f, 0.7f});   // Warm sunlight
+            shaderUniform(shader, "uLightSpecular", Vector3D{1.0f, 0.95f, 0.8f});  // Warm highlights
         } else {
-            // Night lighting - dark and cool/bluish
-            shaderUniform(shader, "uLightAmbient", Vector3D{0.05f, 0.05f, 0.1f});
-            shaderUniform(shader, "uLightDiffuse", Vector3D{0.2f, 0.2f, 0.3f});
-            shaderUniform(shader, "uLightSpecular", Vector3D{0.3f, 0.3f, 0.4f});
+            // Night lighting - cooler, dimmer moonlight
+            shaderUniform(shader, "uLightAmbient", Vector3D{0.08f, 0.08f, 0.12f}); // Very dim blue ambient
+            shaderUniform(shader, "uLightDiffuse", Vector3D{0.25f, 0.25f, 0.4f});  // Cool blue moonlight
+            shaderUniform(shader, "uLightSpecular", Vector3D{0.4f, 0.4f, 0.6f});   // Cool blue highlights
         }
-        
+
         shaderUniform(shader, "uLightDir", lightDir);
     }
 
@@ -217,7 +217,9 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
         for(auto& material : model.material) {
             if (!renderNormal) {
                 /* set material properties */
+                shaderUniform(shader, "uMaterial.ambient", material.ambient);
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
+                shaderUniform(shader, "uMaterial.specular", material.specular);
                 shaderUniform(shader, "uMaterial.shininess", material.shininess);
             }
             glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset * sizeof(unsigned int)));
@@ -236,7 +238,9 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
         for(auto& material : model.material) {
             if (!renderNormal) {
                 /* set material properties */
+                shaderUniform(shader, "uMaterial.ambient", material.ambient);
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
+                shaderUniform(shader, "uMaterial.specular", material.specular);
                 shaderUniform(shader, "uMaterial.shininess", material.shininess);
             } else {
                 shaderUniform(shader, "isGround", true);
