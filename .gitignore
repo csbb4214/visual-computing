@@ -12,6 +12,9 @@ out/
 **/*.suo
 **/*.sln.docstates
 
+#Visual Studio Code
+.vscode/settings.json
+
 # CMake
 **/CMakeCache.txt
 **/CMakeFiles/
