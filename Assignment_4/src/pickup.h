@@ -5,8 +5,8 @@
 
 #include "ground.h"
 
-#include <vector>
 #include <map>
+#include <vector>
 
 struct SquashHeights {
     float front;
@@ -14,26 +14,9 @@ struct SquashHeights {
 };
 
 struct Pickup {
-    enum eControl { 
-        LEFT, 
-        RIGHT, 
-        FASTER, 
-        SLOWER, 
-        CONTROL_COUNT 
-    };
+    enum eControl { LEFT, RIGHT, FASTER, SLOWER, CONTROL_COUNT };
 
-    enum ePart { 
-        BODY = 0, 
-        WHEEL_BR,
-        WHEEL_BL,
-        WHEEL_FR,
-        WHEEL_FL,
-        LIGHT_BR,
-        LIGHT_BL,
-        LIGHT_FR,
-        LIGHT_FL,
-        PART_COUNT 
-    };
+    enum ePart { BODY = 0, WHEEL_BR, WHEEL_BL, WHEEL_FR, WHEEL_FL, LIGHT_BR, LIGHT_BL, LIGHT_FR, LIGHT_FL, PART_COUNT };
 
     ePart ePartWheels[4] = {WHEEL_BR, WHEEL_BL, WHEEL_FR, WHEEL_FL};
 
@@ -74,6 +57,8 @@ struct Pickup {
     float squashSpeed = 0.02f;                  /* how fast the squash height changes */
     float squashReleaseSpeed = 3.0f;            /* controls how fast the squash factor is released */
     SquashHeights squashHeights = {0.0f, 0.0f}; /* current squash heights for front and back wheels */
+
+    bool lightsOn = true;
 };
 
 /**
@@ -81,7 +66,7 @@ struct Pickup {
  *
  * @return Initialized pickup.
  */
-Pickup pickupLoad(const std::string& filePath);
+Pickup pickupLoad(const std::string &filePath);
 
 /**
  * @brief Deletes the given pickup object.

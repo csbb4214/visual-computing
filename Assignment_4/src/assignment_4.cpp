@@ -1,7 +1,7 @@
-#include <cstdlib>
-#include <iostream>
 #include <algorithm>
 #include <array>
+#include <cstdlib>
+#include <iostream>
 
 #include "mygl/camera.h"
 #include "mygl/mesh.h"
@@ -11,10 +11,9 @@
 #include "pickup.h"
 
 /* enum for different render modes */
-enum eRenderMode
-{
-    COLOR = 0,    // render diffuse colors
-    NORMAL,       // render normals
+enum eRenderMode {
+    COLOR = 0, // render diffuse colors
+    NORMAL,    // render normals
     MODE_COUNT
 };
 
@@ -95,6 +94,13 @@ void callbackKey(GLFWwindow *window, int key, int scancode, int action, int mods
     if (key == GLFW_KEY_L && action == GLFW_PRESS) {
         sScene.isDayTime = !sScene.isDayTime;
     }
+
+    /* toggle pickup lights */
+    if (key == GLFW_KEY_K && action == GLFW_PRESS) {
+        bool emission = !sScene.pickup.lightsOn;
+        sScene.pickup.lightsOn = emission;
+        setEmission(sScene.pickup, emission);
+    }
 }
 
 /* GLFW callback function for mouse position events */
@@ -157,19 +163,19 @@ void sceneUpdate(float dt) {
     }
 }
 
-/* 
+/*
  * function to render all objects in the scene using their diffuse colors or their normals
  */
-void renderColor(ShaderProgram& shader, bool renderNormal) {
+void renderColor(ShaderProgram &shader, bool renderNormal) {
     /* setup camera and model matrices */
     Matrix4D proj = cameraProjection(sScene.camera);
     Matrix4D view = cameraView(sScene.camera);
     glUseProgram(shader.id);
-    shaderUniform(shader, "uProj",  proj);
-    shaderUniform(shader, "uView",  view);
-    shaderUniform(shader, "uModel",  sScene.pickup.transformation);
+    shaderUniform(shader, "uProj", proj);
+    shaderUniform(shader, "uView", view);
+    shaderUniform(shader, "uModel", sScene.pickup.transformation);
+    shaderUniform(shader, "uViewPos", cameraPosition(sScene.camera));
     if (renderNormal) {
-        shaderUniform(shader, "uViewPos", cameraPosition(sScene.camera));
         shaderUniform(shader, "isGround", false);
     } else {
         // Set lighting uniforms for Blinn-Phong
@@ -177,9 +183,9 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
 
         if (sScene.isDayTime) {
             // Day lighting - brighter, warmer sunlight
-            shaderUniform(shader, "uLightAmbient", Vector3D{0.4f, 0.4f, 0.45f});   // Soft blue-ish ambient
-            shaderUniform(shader, "uLightDiffuse", Vector3D{0.9f, 0.85f, 0.7f});   // Warm sunlight
-            shaderUniform(shader, "uLightSpecular", Vector3D{1.0f, 0.95f, 0.8f});  // Warm highlights
+            shaderUniform(shader, "uLightAmbient", Vector3D{0.4f, 0.4f, 0.45f});  // Soft blue-ish ambient
+            shaderUniform(shader, "uLightDiffuse", Vector3D{0.9f, 0.85f, 0.7f});  // Warm sunlight
+            shaderUniform(shader, "uLightSpecular", Vector3D{1.0f, 0.95f, 0.8f}); // Warm highlights
         } else {
             // Night lighting - cooler, dimmer moonlight
             shaderUniform(shader, "uLightAmbient", Vector3D{0.08f, 0.08f, 0.12f}); // Very dim blue ambient
@@ -188,15 +194,66 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
         }
 
         shaderUniform(shader, "uLightDir", lightDir);
+
+        // set color of headlights and taillights if they are switched on
+        Vector3D lightFColor = sScene.pickup.lightsOn ? Vector3D{2.0f, 2.0f, 2.0f} : Vector3D{0.0f, 0.0f, 0.0f};
+        Vector3D lightBColor = sScene.pickup.lightsOn ? Vector3D{2.0f, 0.0f, 0.0f} : Vector3D{0.0f, 0.0f, 0.0f};
+        Vector3D lightFAmbient = sScene.pickup.lightsOn ? Vector3D{0.2f, 0.2f, 0.2f} : Vector3D{0.0f, 0.0f, 0.0f};
+        Vector3D lightBAmbient = sScene.pickup.lightsOn ? Vector3D{0.1f, 0.0f, 0.0f} : Vector3D{0.0f, 0.0f, 0.0f};
+
+        Vector3D lightFRWorld = sScene.pickup.transformation * Vector4D(sScene.pickup.lightFRPos, 1.0f);
+        Vector3D lightFLWorld = sScene.pickup.transformation * Vector4D(sScene.pickup.lightFLPos, 1.0f);
+        Vector3D lightBRWorld = sScene.pickup.transformation * Vector4D(sScene.pickup.lightBRPos, 1.0f);
+        Vector3D lightBLWorld = sScene.pickup.transformation * Vector4D(sScene.pickup.lightBLPos, 1.0f);
+
+        // calcuate Direction
+        Vector3D forwardDir = sScene.pickup.transformation * Vector4D(0.0f, 0.0f, 1.0f, 0.0f);
+        Vector3D backwardDir = sScene.pickup.transformation * Vector4D(0.0f, 0.0f, -1.0f, 0.0f);
+
+        // set cutoff
+        float forwardCutoff = cosf(static_cast<float>(to_radians(30.0f)));
+        float backwardCutoff = cosf(static_cast<float>(to_radians(45.0f)));
+
+        // Front right headlight
+        shaderUniform(shader, "uPointLights[0].position", lightFRWorld);
+        shaderUniform(shader, "uPointLights[0].ambient", lightFAmbient);
+        shaderUniform(shader, "uPointLights[0].diffuse", lightFColor);
+        shaderUniform(shader, "uPointLights[0].specular", lightFColor);
+        shaderUniform(shader, "uPointLights[0].direction", forwardDir);
+        shaderUniform(shader, "uPointLights[0].cutoff", forwardCutoff);
+
+        // Front left headlight
+        shaderUniform(shader, "uPointLights[1].position", lightFLWorld);
+        shaderUniform(shader, "uPointLights[1].ambient", lightFAmbient);
+        shaderUniform(shader, "uPointLights[1].diffuse", lightFColor);
+        shaderUniform(shader, "uPointLights[1].specular", lightFColor);
+        shaderUniform(shader, "uPointLights[1].direction", forwardDir);
+        shaderUniform(shader, "uPointLights[1].cutoff", forwardCutoff);
+
+        // Back right taillight
+        shaderUniform(shader, "uPointLights[2].position", lightBRWorld);
+        shaderUniform(shader, "uPointLights[2].ambient", lightBAmbient);
+        shaderUniform(shader, "uPointLights[2].diffuse", lightBColor);
+        shaderUniform(shader, "uPointLights[2].specular", lightBColor);
+        shaderUniform(shader, "uPointLights[2].direction", backwardDir);
+        shaderUniform(shader, "uPointLights[2].cutoff", backwardCutoff);
+
+        // Back left taillight
+        shaderUniform(shader, "uPointLights[3].position", lightBLWorld);
+        shaderUniform(shader, "uPointLights[3].ambient", lightBAmbient);
+        shaderUniform(shader, "uPointLights[3].diffuse", lightBColor);
+        shaderUniform(shader, "uPointLights[3].specular", lightBColor);
+        shaderUniform(shader, "uPointLights[3].direction", backwardDir);
+        shaderUniform(shader, "uPointLights[3].cutoff", backwardCutoff);
     }
 
     // sqash ratio as shader uniform
     shaderUniform(shader, "uSquashRatio", sScene.pickup.squashRatio);
 
     /* render pickup */
-    for(unsigned int i = 0; i < sScene.pickup.partModel.size(); i++) {
-        auto& model = sScene.pickup.partModel[i];
-        auto& transform = sScene.pickup.partTransformations[i];
+    for (unsigned int i = 0; i < sScene.pickup.partModel.size(); i++) {
+        auto &model = sScene.pickup.partModel[i];
+        auto &transform = sScene.pickup.partTransformations[i];
         glBindVertexArray(model.mesh.vao);
 
         shaderUniform(shader, "uLocalModel", transform);
@@ -214,7 +271,7 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
 
         shaderUniform(shader, "uSquashFactor", squashFactor);
 
-        for(auto& material : model.material) {
+        for (auto &material : model.material) {
             if (!renderNormal) {
                 /* set material properties */
                 shaderUniform(shader, "uMaterial.ambient", material.ambient);
@@ -222,20 +279,20 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
                 shaderUniform(shader, "uMaterial.specular", material.specular);
                 shaderUniform(shader, "uMaterial.shininess", material.shininess);
             }
-            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset * sizeof(unsigned int)));
+            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void *)(material.indexOffset * sizeof(unsigned int)));
         }
     }
 
     /* render ground */
     {
-        auto& model = sScene.ground.model;
+        auto &model = sScene.ground.model;
         shaderUniform(shader, "uModel", Matrix4D::identity());
 
         // Ground doesn't get squashed
         shaderUniform(shader, "uSquashFactor", 0.0f);
 
         glBindVertexArray(model.mesh.vao);
-        for(auto& material : model.material) {
+        for (auto &material : model.material) {
             if (!renderNormal) {
                 /* set material properties */
                 shaderUniform(shader, "uMaterial.ambient", material.ambient);
@@ -245,7 +302,7 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
             } else {
                 shaderUniform(shader, "isGround", true);
             }
-            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset*sizeof(unsigned int)));
+            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void *)(material.indexOffset * sizeof(unsigned int)));
         }
     }
 
