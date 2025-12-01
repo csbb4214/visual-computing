@@ -179,18 +179,16 @@ void renderColor(ShaderProgram &shader, bool renderNormal) {
         shaderUniform(shader, "isGround", false);
     } else {
         // Set lighting uniforms for Blinn-Phong
-        Vector3D lightDir = {-0.6f, -2.0f, -1.0f}; // Directional light pointing down and forward
+        Vector3D lightDir = {-2.0f, -2.0f, -1.0f}; // Directional light pointing down and forward
 
         if (sScene.isDayTime) {
-            // Day lighting - brighter, warmer sunlight
-            shaderUniform(shader, "uLightAmbient", Vector3D{0.4f, 0.4f, 0.45f});  // Soft blue-ish ambient
-            shaderUniform(shader, "uLightDiffuse", Vector3D{0.9f, 0.85f, 0.7f});  // Warm sunlight
-            shaderUniform(shader, "uLightSpecular", Vector3D{1.0f, 0.95f, 0.8f}); // Warm highlights
+            shaderUniform(shader, "uLightAmbient", Vector3D{0.4f, 0.4f, 0.45f});
+            shaderUniform(shader, "uLightDiffuse", Vector3D{0.9f, 0.85f, 0.7f});
+            shaderUniform(shader, "uLightSpecular", Vector3D{1.0f, 0.95f, 0.8f});
         } else {
-            // Night lighting - cooler, dimmer moonlight
-            shaderUniform(shader, "uLightAmbient", Vector3D{0.08f, 0.08f, 0.12f}); // Very dim blue ambient
-            shaderUniform(shader, "uLightDiffuse", Vector3D{0.25f, 0.25f, 0.4f});  // Cool blue moonlight
-            shaderUniform(shader, "uLightSpecular", Vector3D{0.4f, 0.4f, 0.6f});   // Cool blue highlights
+            shaderUniform(shader, "uLightAmbient", Vector3D{0.08f, 0.08f, 0.12f});
+            shaderUniform(shader, "uLightDiffuse", Vector3D{0.25f, 0.25f, 0.4f});
+            shaderUniform(shader, "uLightSpecular", Vector3D{0.4f, 0.4f, 0.6f});
         }
 
         shaderUniform(shader, "uLightDir", lightDir);
@@ -273,7 +271,7 @@ void renderColor(ShaderProgram &shader, bool renderNormal) {
 
         for (auto &material : model.material) {
             if (!renderNormal) {
-                /* set material properties */
+                /* set material properties (mostly grey from files) */
                 shaderUniform(shader, "uMaterial.ambient", material.ambient);
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
                 shaderUniform(shader, "uMaterial.specular", material.specular);

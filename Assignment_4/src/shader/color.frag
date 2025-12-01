@@ -29,7 +29,7 @@ uniform vec3 uLightDiffuse;  // Diffuse light color
 uniform vec3 uLightSpecular; // Specular light color
 uniform bool isGround;
 
-vec3 calcPointLight (PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir) {
+vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir) {
     vec3 lightDir = normalize(light.position - fragPos);
 
     // Check angle for Spotlight
