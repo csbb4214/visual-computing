@@ -5,6 +5,7 @@ struct Material {
     vec3 diffuse;
     vec3 specular;
     float shininess;
+    vec3 emission;
 };
 
 struct PointLight {
@@ -80,6 +81,8 @@ void main(void) {
     result += calcPointLight(uPointLights[1], normal, tFragPos, viewDir);
     result += calcPointLight(uPointLights[2], normal, tFragPos, viewDir);
     result += calcPointLight(uPointLights[3], normal, tFragPos, viewDir);
+
+    result += uMaterial.emission;
 
     result = clamp(result, 0.0, 1.0);
 

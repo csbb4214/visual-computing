@@ -13,7 +13,7 @@ out/
 **/*.sln.docstates
 
 #Visual Studio Code
-.vscode/settings.json
+.vscode/
 
 # CMake
 **/CMakeCache.txt
