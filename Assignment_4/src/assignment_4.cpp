@@ -278,6 +278,7 @@ void renderColor(ShaderProgram &shader, bool renderNormal) {
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
                 shaderUniform(shader, "uMaterial.specular", material.specular);
                 shaderUniform(shader, "uMaterial.shininess", material.shininess);
+                shaderUniform(shader, "uMaterial.emission", material.emission);
             }
             glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void *)(material.indexOffset * sizeof(unsigned int)));
         }
@@ -299,6 +300,7 @@ void renderColor(ShaderProgram &shader, bool renderNormal) {
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
                 shaderUniform(shader, "uMaterial.specular", material.specular);
                 shaderUniform(shader, "uMaterial.shininess", material.shininess);
+                shaderUniform(shader, "uMaterial.emission", material.emission);
             } else {
                 shaderUniform(shader, "isGround", true);
             }
