@@ -1,0 +1,82 @@
+# Blender 4.0.2 MTL File: 'pickup-grouped.blend'
+# www.blender.org
+
+newmtl Details_Wheels
+Ns 230.400024
+Ka 1.000000 1.000000 1.000000
+Kd 0.980000 0.980000 0.980000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Ns textures/Details_Wheels_Glossy.jpg
+map_Kd textures/Details_Wheels_Albedo.jpg
+map_Ks textures/Details_Wheels_Specular_Color.jpg
+map_Ke textures/Details_Wheels_Emission.png
+map_Ka textures/Details_Wheels_AO.png
+map_Bump textures/Details_Wheels_Normals.jpg
+
+newmtl Hull
+Ns 230.400024
+Ka 0.900000 0.900000 0.900000
+Kd 0.980000 0.980000 0.980000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Ns textures/Hull_Glossy.jpg
+map_Kd textures/Hull_Albedo.jpg
+map_Ks textures/Hull_Specular_Color.jpg
+map_Ke textures/Hull_Emission.jpg
+map_Ka textures/Hull_AO.png
+map_Bump textures/Hull_Normals.jpg
+
+newmtl Interior
+Ns 230.400024
+Ka 0.900000 0.900000 0.900000
+Kd 0.980000 0.980000 0.980000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Ns textures/Interior_Glossy.jpg
+map_Kd textures/Interior_Albedo.jpg
+map_Ks textures/Interior_Specular_Color.jpg
+map_Ke textures/Interior_Emission.png
+map_Ka textures/Interior_AO.jpg
+map_Bump textures/Interior_Normals.jpg
+
+newmtl Motor
+Ns 902.500000
+Ka 1.000000 1.000000 1.000000
+Kd 0.097864 0.488621 0.699029
+Ks 0.950000 0.950000 0.950000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Ns textures/Motor_Glossy.jpg
+map_Kd textures/Motor_Albedo.jpg
+map_Ks textures/Motor_Specular_Color.jpg
+map_Ke textures/Motor_Emission.jpg
+map_Ka textures/Motor_AO.jpg
+map_Bump textures/Motor_Normals.jpg
+
+newmtl Undercarriage
+Ns 10.000005
+Ka 0.800000 0.800000 0.800000
+Kd 0.039012 0.013782 0.008053
+Ks 0.300000 0.300000 0.300000
+Ke 0.000000 0.000000 0.000000
+Ni 1.300000
+d 1.000000
+illum 2
+map_Ns textures/Undercarriage_Glossy.jpg
+map_Kd textures/Undercarriage_Albedo.jpg
+map_Ks textures/Undercarriage_Specular_Color.jpg
+map_Ke textures/Undercarriage_Emission.png
+map_Ka textures/Undercarriage_AO.jpg
+map_Bump textures/Undercarriage_Normals.jpg
