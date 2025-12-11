@@ -15,6 +15,8 @@ uniform float uSquashFactor;
 
 out vec3 tNormal;
 out vec3 tFragPos;
+out vec2 vTexCoord;
+out mat3 vNormalMatrix; // pass normal matrix to fragment shader
 
 void main(void) {
     vec4 pos = uLocalModel * vec4(aPosition, 1.0f);
@@ -23,8 +25,17 @@ void main(void) {
         float disp = dispHeight * (1 - ((pos.y + 1) / 2.0f));
         pos.y += disp;
     }
-    
+
     gl_Position = uProj * uView * uModel * pos;
     tFragPos = vec3(uModel * pos);
-    tNormal = normalize(mat3(transpose(inverse(uModel))) * mat3(transpose(inverse(uLocalModel))) * aNormal);
+
+    // Calculate normal matrix for transforming normals
+    mat3 normalMatrix = mat3(transpose(inverse(uModel * uLocalModel)));
+    vNormalMatrix = normalMatrix;
+
+    // Transform vertex normal to world space
+    tNormal = normalize(normalMatrix * aNormal);
+
+    // also pass texture coordinates to fragment shader
+    vTexCoord = aUV;
 }

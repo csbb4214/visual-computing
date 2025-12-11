@@ -241,12 +241,37 @@ void setLights(ShaderProgram& shader) {
 
 /* function to set material uniforms and textures */
 void setMaterial(ShaderProgram& shader, Material& material) {
-    /* set material properties */
-    shaderUniform(shader, "uMaterial.emission", material.emission);
-    shaderUniform(shader, "uMaterial.ambient", material.ambient);
-    shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
-    shaderUniform(shader, "uMaterial.specular", material.specular);
-    shaderUniform(shader, "uMaterial.shininess", material.shininess);
+    // Bind all texture maps
+
+    // Diffuse map
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, material.map_diffuse.id);
+    shaderUniform(shader, "map_diffuse", 0);
+    
+    // Ambient occlusion map
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, material.map_ambient.id);
+    shaderUniform(shader, "map_ambient", 1);
+    
+    // Specular map
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, material.map_specular.id);
+    shaderUniform(shader, "map_specular", 2);
+    
+    // Shininess map
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, material.map_shininess.id);
+    shaderUniform(shader, "map_shininess", 3);
+    
+    // Emission map
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, material.map_emission.id);
+    shaderUniform(shader, "map_emission", 4);
+
+    // Normal map
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, material.map_normal.id);
+    shaderUniform(shader, "map_normal", 5);
 }
 
 /* 
@@ -360,6 +385,7 @@ void renderBlinnPhong(ShaderProgram& shader) {
         shaderUniform(shader, "uModel", Matrix4D::identity());
         shaderUniform(shader, "uLocalModel", Matrix4D::identity());
         shaderUniform(shader, "isGround", true);
+        shaderUniform(shader, "uGroundNormalScale", 0.25f); // parameter for ground blending
 
         auto& model = sScene.ground.model;
 
