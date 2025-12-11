@@ -15,7 +15,7 @@ uniform float uSquashFactor;
 
 out vec3 tNormal;
 out vec3 tFragPos;
-out vec2 vTexCoord;
+out vec2 vTexCoord;     // pass texture coordinates to fragment shader
 out mat3 vNormalMatrix; // pass normal matrix to fragment shader
 
 void main(void) {

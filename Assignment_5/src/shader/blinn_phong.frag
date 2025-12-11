@@ -82,7 +82,6 @@ void main(void) {
 
     // Calculate final normal based on object type
     vec3 finalNormal;
-
     if (isGround) {
         // For ground: transform normal map from object to world space and blend
         // Convert normal from texture space [0,1] to [-1,1]
@@ -91,7 +90,7 @@ void main(void) {
         // Transform object space normal to world space using normal matrix
         vec3 worldSpaceNormal = normalize(vNormalMatrix * objectSpaceNormal);
 
-        // Blend as per instructions: n_s = norm(s * n_w + (1-s) * n_v)
+        // Blend: n_s = norm(s * n_w + (1-s) * n_v)
         vec3 blendedNormal = uGroundNormalScale * worldSpaceNormal + (1.0 - uGroundNormalScale) * vertexNormal;
         finalNormal = normalize(blendedNormal);
 
@@ -103,7 +102,7 @@ void main(void) {
         // For wheels, use vertex normals only
         finalNormal = vertexNormal;
     } else {
-        // For other objects (pickup body): transform normal map
+        // For other objects (pickup): transform normal map
         // Convert normal from texture space [0,1] to [-1,1]
         vec3 objectSpaceNormal = normalTexel.rgb * 2.0 - 1.0;
 
