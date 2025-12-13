@@ -1,30 +1,29 @@
-#include <cstdlib>
-#include <iostream>
 #include <algorithm>
 #include <array>
+#include <cstdlib>
+#include <iostream>
 
 #include "mygl/camera.h"
-#include "mygl/mesh.h"
-#include "mygl/shader.h"
 #include "mygl/cube_map.h"
 #include "mygl/geometry.h"
+#include "mygl/mesh.h"
+#include "mygl/shader.h"
 
-#include "light.h"
 #include "ground.h"
+#include "light.h"
 #include "pickup.h"
 
 /* enum for different render modes */
-enum eRenderMode
-{
-    COLOR = 0,    // render diffuse colors
-    NORMAL,       // render normals
-    BLINN_PHONG,  // render blinn phong
+enum eRenderMode {
+    COLOR = 0,   // render diffuse colors
+    NORMAL,      // render normals
+    BLINN_PHONG, // render blinn phong
     MODE_COUNT
 };
 
 /* directional light definition */
-const Light_Directional lightDay = { { 0.3f, -1.0f, 0.0f }, { 0.2f, 0.2f, 0.2f }, { 0.8f, 0.8f, 0.8f } };
-const Light_Directional lightNight = { { 0.3f, -1.0f, 0.0f }, { 0.0f, 0.0f, 0.1f }, { 0.1f, 0.1f, 0.2f } };
+const Light_Directional lightDay = {{0.3f, -1.0f, 0.0f}, {0.2f, 0.2f, 0.2f}, {0.8f, 0.8f, 0.8f}};
+const Light_Directional lightNight = {{0.3f, -1.0f, 0.0f}, {0.0f, 0.0f, 0.1f}, {0.1f, 0.1f, 0.2f}};
 
 /* struct holding all necessary state variables for scene */
 struct {
@@ -49,6 +48,10 @@ struct {
     ShaderProgram shaderNormal;
     ShaderProgram shaderBlinnPhong;
     ShaderProgram shaderEnvironmentMap;
+
+    /* skybox */
+    CubeMap skybox;
+    ShaderProgram shaderSkybox;
 } sScene;
 
 /* struct holding all state variables for input */
@@ -114,33 +117,26 @@ void callbackKey(GLFWwindow *window, int key, int scancode, int action, int mods
     /* toggle render mode */
     if (key == GLFW_KEY_R && action == GLFW_PRESS) {
         sScene.renderMode = static_cast<eRenderMode>((static_cast<int>(sScene.renderMode) + 1) % eRenderMode::MODE_COUNT);
-        switch(sScene.renderMode) {
-            case eRenderMode::COLOR:
-                std::cout << "Render mode: COLOR" << std::endl;
-                break;
-            case eRenderMode::NORMAL:
-                std::cout << "Render mode: NORMAL" << std::endl;
-                break;
-            case eRenderMode::BLINN_PHONG:
-                std::cout << "Render mode: BLINN_PHONG" << std::endl;
-                break;
-            default:
-                std::cout << "Render mode: UNKNOWN" << std::endl;
+        switch (sScene.renderMode) {
+        case eRenderMode::COLOR: std::cout << "Render mode: COLOR" << std::endl; break;
+        case eRenderMode::NORMAL: std::cout << "Render mode: NORMAL" << std::endl; break;
+        case eRenderMode::BLINN_PHONG: std::cout << "Render mode: BLINN_PHONG" << std::endl; break;
+        default: std::cout << "Render mode: UNKNOWN" << std::endl;
         }
     }
 
     /* night light setting */
-    if(key == GLFW_KEY_N && action == GLFW_PRESS) {
+    if (key == GLFW_KEY_N && action == GLFW_PRESS) {
         setDay(false);
     }
 
     /* day light setting */
-    if(key == GLFW_KEY_M && action == GLFW_PRESS) {
+    if (key == GLFW_KEY_M && action == GLFW_PRESS) {
         setDay(true);
     }
 
     /* toggle pickup lights */
-    if(key == GLFW_KEY_L && action == GLFW_PRESS) {
+    if (key == GLFW_KEY_L && action == GLFW_PRESS) {
         setPickupLights(!sScene.lightsOn);
     }
 }
@@ -188,25 +184,57 @@ void sceneInit(float width, float height) {
     sScene.cameraFollowPickup = false;
     sScene.zoomSpeedMultiplier = 0.05f;
 
-    /* Light positions and strength: see for examples - https://learnopengl.com/Lighting/Light-casters */
+    /* Light positions and strength: see for examples -
+     * https://learnopengl.com/Lighting/Light-casters */
     Vector3D headLightDir = normalize(Vector3D{0.0f, -0.4f, 1.0f});
     Vector3D tailLightDir = normalize(Vector3D{0.0f, -0.3f, -1.0f});
-    sScene.lightSpots[0] = { sScene.pickup.lightFLPos, headLightDir, { 1.0f, 1.0f, 1.0f }, 0.4f, 0.01f, 0.01f, to_radians(50.0f), sScene.lightsOn };    
-    sScene.lightSpots[1] = { sScene.pickup.lightFRPos, headLightDir, { 1.0f, 1.0f, 1.0f }, 0.4f, 0.01f, 0.01f, to_radians(50.0f), sScene.lightsOn }; 
-    sScene.lightSpots[2] = { sScene.pickup.lightBLPos, tailLightDir, { 0.6f, 0.1f, 0.1f }, 1.0f, 0.0045f, 0.075f, to_radians(80.0f), sScene.lightsOn };    
-    sScene.lightSpots[3] = { sScene.pickup.lightBRPos, tailLightDir, { 0.6f, 0.1f, 0.1f }, 1.0f, 0.0045f, 0.075f, to_radians(80.0f), sScene.lightsOn }; 
+    sScene.lightSpots[0] = {sScene.pickup.lightFLPos, headLightDir, {1.0f, 1.0f, 1.0f}, 0.4f, 0.01f, 0.01f, to_radians(50.0f), sScene.lightsOn};
+    sScene.lightSpots[1] = {sScene.pickup.lightFRPos, headLightDir, {1.0f, 1.0f, 1.0f}, 0.4f, 0.01f, 0.01f, to_radians(50.0f), sScene.lightsOn};
+    sScene.lightSpots[2] = {sScene.pickup.lightBLPos, tailLightDir, {0.6f, 0.1f, 0.1f}, 1.0f, 0.0045f, 0.075f, to_radians(80.0f), sScene.lightsOn};
+    sScene.lightSpots[3] = {sScene.pickup.lightBRPos, tailLightDir, {0.6f, 0.1f, 0.1f}, 1.0f, 0.0045f, 0.075f, to_radians(80.0f), sScene.lightsOn};
 
     /* load shader from file */
     sScene.shaderColor = shaderLoad("shader/default.vert", "shader/color.frag");
     sScene.shaderNormal = shaderLoad("shader/default.vert", "shader/normal.frag");
     sScene.shaderBlinnPhong = shaderLoad("shader/default.vert", "shader/blinn_phong.frag");
+    sScene.shaderSkybox = shaderLoad("shader/skybox.vert", "shader/skybox.frag");
+
+    /* Cube vertex data form learnOpenGL tutorial linked in assignment */
+    float skyboxVertices[] = {-1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f,
+
+        -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f,
+
+        1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f,
+
+        -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f,
+
+        -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f};
+
+    std::vector<Vector3D> vertices;
+    for (int i = 0; i < 36 * 3; i += 3) {
+        vertices.push_back(Vector3D{skyboxVertices[i], skyboxVertices[i + 1], skyboxVertices[i + 2]});
+    }
+
+    std::vector<unsigned int> indices;
+    for (unsigned int i = 0; i < 36; i++) {
+        indices.push_back(i);
+    }
+
+    std::array<std::string, 6> faces = {"assets/skybox/kloofendal_48d_partly_cloudy/px.png", "assets/skybox/kloofendal_48d_partly_cloudy/nx.png",
+        "assets/skybox/kloofendal_48d_partly_cloudy/py.png", "assets/skybox/kloofendal_48d_partly_cloudy/ny.png",
+        "assets/skybox/kloofendal_48d_partly_cloudy/pz.png", "assets/skybox/kloofendal_48d_partly_cloudy/nz.png"};
+
+    sScene.skybox = cubeMapCreate(vertices, indices, faces);
 
     setPickupLights(true);
     setDay(true);
     sScene.renderMode = eRenderMode::BLINN_PHONG;
 }
 
-/* function to move and update objects in scene (e.g., move pickup according to user input) */
+/* function to move and update objects in scene (e.g., move pickup according to
+ * user input) */
 void sceneUpdate(float dt) {
     pickupMove(sScene.pickup, sScene.ground, sInput.buttonPressed, dt);
 
@@ -216,14 +244,14 @@ void sceneUpdate(float dt) {
 }
 
 /* function to set light uniforms */
-void setLights(ShaderProgram& shader) {
+void setLights(ShaderProgram &shader) {
     /* set light directional source */
     shaderUniform(shader, "uLightSun.direction", sScene.lightSun.direction);
     shaderUniform(shader, "uLightSun.ambient", sScene.lightSun.ambient);
     shaderUniform(shader, "uLightSun.color", sScene.lightSun.color);
 
     /* set the pickup's spot lights */
-    for(int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         Vector4D pos = sScene.pickup.transformation * Vector4D(sScene.lightSpots[i].position);
         Vector4D dir = normalize(Matrix4D(Matrix3D(sScene.pickup.transformation)) * Vector4D(sScene.lightSpots[i].direction));
 
@@ -240,7 +268,7 @@ void setLights(ShaderProgram& shader) {
 }
 
 /* function to set material uniforms and textures */
-void setMaterial(ShaderProgram& shader, Material& material) {
+void setMaterial(ShaderProgram &shader, Material &material) {
     // Bind all texture maps
 
     glActiveTexture(GL_TEXTURE0);
@@ -268,17 +296,18 @@ void setMaterial(ShaderProgram& shader, Material& material) {
     shaderUniform(shader, "map_normal", 5);
 }
 
-/* 
- * function to render all objects in the scene using their diffuse colors or their normals
+/*
+ * function to render all objects in the scene using their diffuse colors or
+ * their normals
  */
-void renderColor(ShaderProgram& shader, bool renderNormal) {
+void renderColor(ShaderProgram &shader, bool renderNormal) {
     /* setup camera and model matrices */
     Matrix4D proj = cameraProjection(sScene.camera);
     Matrix4D view = cameraView(sScene.camera);
     glUseProgram(shader.id);
-    shaderUniform(shader, "uProj",  proj);
-    shaderUniform(shader, "uView",  view);
-    shaderUniform(shader, "uModel",  sScene.pickup.transformation);
+    shaderUniform(shader, "uProj", proj);
+    shaderUniform(shader, "uView", view);
+    shaderUniform(shader, "uModel", sScene.pickup.transformation);
     shaderUniform(shader, "uSquashRatio", sScene.pickup.squashRatio);
     shaderUniform(shader, "isWheel", false);
     if (renderNormal) {
@@ -287,44 +316,45 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
     }
 
     /* render pickup */
-    for(unsigned int i = 0; i < sScene.pickup.partModel.size(); i++) {
-        auto& model = sScene.pickup.partModel[i];
-        auto& transform = sScene.pickup.partTransformations[i];
+    for (unsigned int i = 0; i < sScene.pickup.partModel.size(); i++) {
+        auto &model = sScene.pickup.partModel[i];
+        auto &transform = sScene.pickup.partTransformations[i];
         glBindVertexArray(model.mesh.vao);
 
         shaderUniform(shader, "uLocalModel", transform);
         shaderUniform(shader, "uModel", sScene.pickup.transformation);
 
         /* set animation properties */
-        if (std::find(std::begin(sScene.pickup.ePartWheels), std::end(sScene.pickup.ePartWheels), i) != std::end(sScene.pickup.ePartWheels)) {            
-            float squashFactor = (i == Pickup::ePart::WHEEL_BR || i == Pickup::ePart::WHEEL_BL) ? sScene.pickup.backSquashFactor : sScene.pickup.frontSquashFactor;
+        if (std::find(std::begin(sScene.pickup.ePartWheels), std::end(sScene.pickup.ePartWheels), i) != std::end(sScene.pickup.ePartWheels)) {
+            float squashFactor =
+                (i == Pickup::ePart::WHEEL_BR || i == Pickup::ePart::WHEEL_BL) ? sScene.pickup.backSquashFactor : sScene.pickup.frontSquashFactor;
             shaderUniform(shader, "uSquashFactor", squashFactor);
             shaderUniform(shader, "isWheel", true);
         } else {
             shaderUniform(shader, "isWheel", false);
         }
 
-        for(auto& material : model.material) {
+        for (auto &material : model.material) {
             if (!renderNormal) {
                 /* set material properties */
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
             }
-            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset * sizeof(unsigned int)) );
+            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void *)(material.indexOffset * sizeof(unsigned int)));
         }
     }
 
     /* render ground */
     {
-        auto& model = sScene.ground.model;
+        auto &model = sScene.ground.model;
         shaderUniform(shader, "uModel", Matrix4D::identity());
 
         glBindVertexArray(model.mesh.vao);
-        for(auto& material : model.material) {
+        for (auto &material : model.material) {
             if (!renderNormal) {
                 /* set material properties */
                 shaderUniform(shader, "uMaterial.diffuse", material.diffuse);
             }
-            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset*sizeof(unsigned int)) );
+            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void *)(material.indexOffset * sizeof(unsigned int)));
         }
     }
 
@@ -333,15 +363,16 @@ void renderColor(ShaderProgram& shader, bool renderNormal) {
     glUseProgram(0);
 }
 
-/* function to render all objects in the scene using the blinn-phong shading model */
-void renderBlinnPhong(ShaderProgram& shader) {
+/* function to render all objects in the scene using the blinn-phong shading
+ * model */
+void renderBlinnPhong(ShaderProgram &shader) {
     /* setup camera and model matrices */
     Matrix4D proj = cameraProjection(sScene.camera);
     Matrix4D view = cameraView(sScene.camera);
     glUseProgram(shader.id);
-    shaderUniform(shader, "uProj",  proj);
-    shaderUniform(shader, "uView",  view);
-    shaderUniform(shader, "uModel",  sScene.pickup.transformation);
+    shaderUniform(shader, "uProj", proj);
+    shaderUniform(shader, "uView", view);
+    shaderUniform(shader, "uModel", sScene.pickup.transformation);
     shaderUniform(shader, "uViewPos", cameraPosition(sScene.camera));
     shaderUniform(shader, "isGround", false);
     shaderUniform(shader, "uSquashRatio", sScene.pickup.squashRatio);
@@ -350,27 +381,28 @@ void renderBlinnPhong(ShaderProgram& shader) {
     setLights(shader);
 
     /* render pickup */
-    for(unsigned int i = 0; i < sScene.pickup.partModel.size(); i++) {
-        auto& model = sScene.pickup.partModel[i];
-        auto& transform = sScene.pickup.partTransformations[i];
+    for (unsigned int i = 0; i < sScene.pickup.partModel.size(); i++) {
+        auto &model = sScene.pickup.partModel[i];
+        auto &transform = sScene.pickup.partTransformations[i];
         glBindVertexArray(model.mesh.vao);
 
         shaderUniform(shader, "uLocalModel", transform);
         shaderUniform(shader, "uModel", sScene.pickup.transformation);
 
         /* set animation properties */
-        if (std::find(std::begin(sScene.pickup.ePartWheels), std::end(sScene.pickup.ePartWheels), i) != std::end(sScene.pickup.ePartWheels)) {            
-            float squashFactor = (i == Pickup::ePart::WHEEL_BR || i == Pickup::ePart::WHEEL_BL) ? sScene.pickup.backSquashFactor : sScene.pickup.frontSquashFactor;
+        if (std::find(std::begin(sScene.pickup.ePartWheels), std::end(sScene.pickup.ePartWheels), i) != std::end(sScene.pickup.ePartWheels)) {
+            float squashFactor =
+                (i == Pickup::ePart::WHEEL_BR || i == Pickup::ePart::WHEEL_BL) ? sScene.pickup.backSquashFactor : sScene.pickup.frontSquashFactor;
             shaderUniform(shader, "uSquashFactor", squashFactor);
             shaderUniform(shader, "isWheel", true);
         } else {
             shaderUniform(shader, "isWheel", false);
         }
 
-        for(auto& material : model.material) {
+        for (auto &material : model.material) {
             /* set material properties */
             setMaterial(shader, material);
-            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset * sizeof(unsigned int)) );
+            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void *)(material.indexOffset * sizeof(unsigned int)));
         }
     }
 
@@ -381,18 +413,46 @@ void renderBlinnPhong(ShaderProgram& shader) {
         shaderUniform(shader, "isGround", true);
         shaderUniform(shader, "uGroundNormalScale", 0.25f); // parameter for ground blending
 
-        auto& model = sScene.ground.model;
+        auto &model = sScene.ground.model;
 
         glBindVertexArray(model.mesh.vao);
-        for(auto& material : model.material) {
+        for (auto &material : model.material) {
             /* set material properties */
             setMaterial(shader, material);
-            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void*) (material.indexOffset * sizeof(unsigned int)) );
+            glDrawElements(GL_TRIANGLES, material.indexCount, GL_UNSIGNED_INT, (const void *)(material.indexOffset * sizeof(unsigned int)));
         }
     }
 
     /* cleanup opengl state */
     glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+/* function to render skybox */
+void renderSkybox(ShaderProgram &shader) {
+    glDepthFunc(GL_LEQUAL);
+    glUseProgram(shader.id);
+
+    Matrix4D proj = cameraProjection(sScene.camera);
+    Matrix4D view = Matrix4D(Matrix3D(cameraView(sScene.camera))); // remove translation
+
+    shaderUniform(shader, "uProj", proj);
+    shaderUniform(shader, "uView", view);
+    shaderUniform(shader, "isDay", sScene.isDay);
+
+    Vector3D tintColor = sScene.isDay ? Vector3D{1.0f, 1.0f, 1.0f} : Vector3D{0.3f, 0.4f, 0.6f};
+    shaderUniform(shader, "uTintColor", tintColor);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, sScene.skybox.texture.id);
+    shaderUniform(shader, "uSkybox", 0);
+
+    glBindVertexArray(sScene.skybox.mesh.vao);
+    glDrawElements(GL_TRIANGLES, sScene.skybox.mesh.size_ibo, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    glDepthFunc(GL_LESS);
+
     glUseProgram(0);
 }
 
@@ -417,6 +477,8 @@ void sceneDraw() {
         }
     }
     glCheckError();
+
+    renderSkybox(sScene.shaderSkybox);
 
     /* cleanup opengl state */
     glBindVertexArray(0);
@@ -471,8 +533,10 @@ int main(int argc, char **argv) {
     shaderDelete(sScene.shaderColor);
     shaderDelete(sScene.shaderNormal);
     shaderDelete(sScene.shaderBlinnPhong);
+    shaderDelete(sScene.shaderSkybox);
     pickupDelete(sScene.pickup);
     groundDelete(sScene.ground);
+    cubeMapDelete(sScene.skybox);
 
     /* cleanup glfw/glcontext */
     windowDelete(window);
