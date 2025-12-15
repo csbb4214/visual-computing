@@ -29,6 +29,9 @@ uniform sampler2D map_specular;
 uniform sampler2D map_shininess;
 uniform sampler2D map_emission;
 uniform sampler2D map_normal;
+uniform samplerCube uEnvironmentMap;
+uniform vec3 uTintColor;
+
 
 in vec3 tNormal;
 in vec3 tFragPos;
@@ -128,6 +131,17 @@ void main(void) {
         illuminance += intensity * attenuation * uLightSpots[i].color
                        * brdf_blinn_phong(lightDir, viewDir, finalNormal, materialDiffuse, materialSpecular, materialShininess);
     }
+
+        // --- ENVIRONMENT REFLECTION (cubemap) ---
+    // viewDir zeigt vom Fragment zur Kamera -> für reflect brauchen wir den "incoming" Strahl: -viewDir
+    vec3 reflDir = reflect(-viewDir, normalize(finalNormal));
+
+    // cubemap sample + day/night tint (wie skybox)
+    vec3 envColor = texture(uEnvironmentMap, reflDir).rgb * uTintColor;
+
+    // specular map steuert Reflexionsstärke
+    illuminance += envColor * materialSpecular;
+
 
     // Use alpha from diffuse texture instead of 1.0
     fragColor = vec4(illuminance, diffuseTexel.a);

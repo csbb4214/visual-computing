@@ -380,6 +380,13 @@ void renderBlinnPhong(ShaderProgram &shader) {
 
     setLights(shader);
 
+    Vector3D tintColor = sScene.isDay ? Vector3D{1.0f, 1.0f, 1.0f} : Vector3D{0.3f, 0.4f, 0.6f};
+    shaderUniform(shader, "uTintColor", tintColor);
+
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, sScene.skybox.texture.id);
+    shaderUniform(shader, "uEnvironmentMap", 6);
+
     /* render pickup */
     for (unsigned int i = 0; i < sScene.pickup.partModel.size(); i++) {
         auto &model = sScene.pickup.partModel[i];

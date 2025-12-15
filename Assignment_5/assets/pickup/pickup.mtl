@@ -27,7 +27,7 @@ Ni 1.500000
 d 1.000000
 illum 2
 map_Ns textures/Hull_Glossy.jpg
-map_Kd textures/Hull_Albedo.jpg
+map_Kd textures/Hull_Albedo.png
 map_Ks textures/Hull_Specular_Color.jpg
 map_Ke textures/Hull_Emission.jpg
 map_Ka textures/Hull_AO.png
