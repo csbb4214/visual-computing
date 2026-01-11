@@ -4,17 +4,16 @@
 
 #include <vector>
 
-enum eDataIdx { Position = 0, Color = 1 };
+enum eDataIdx { Position = 0, Color = 1, Normal = 2, UV = 3 };
 
-struct Vertex
-{
+struct Vertex {
     glm::vec3 pos;
     glm::vec4 color;
+    glm::vec3 normal;
+    glm::vec2 uv;
 };
 
-
-struct Mesh
-{
+struct Mesh {
     GLuint vao = 0;
     GLuint vbo = 0;
     GLuint ebo = 0;
@@ -39,14 +38,14 @@ struct Mesh
  *   glDrawElements(GL_TRIANGLES, myMesh.size_ibo, GL_UNSIGNED_INT, nullptr);
  *
  */
-Mesh meshCreate(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices);
+Mesh meshCreate(const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices);
 
 /**
  * @brief Cleanup and delete all OpenGL buffers of a mesh. Has to be called for each mesh after it is not used anymore.
  *
  * @param mesh Mesh to delete.
  */
-void meshDelete(const Mesh& mesh);
+void meshDelete(const Mesh &mesh);
 
 /**
  * @brief Reads a .obj file using the tinyobjloader and loads all shapes contained in the file and creates meshes from it.

@@ -1,18 +1,32 @@
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 #include "mygl/camera.h"
-#include "mygl/mesh.h"
+#include "mygl/geometry.h"
 #include "mygl/shader.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
+struct MaterialSphere {
+    glm::vec3 position;
+    float metallic;
+    float roughness;
+    glm::vec3 albedo;
+};
+
 struct {
     Camera camera;
-    std::vector<Mesh> meshes;
+    Mesh sphereMesh;
+    std::vector<MaterialSphere> materialSpheres;
     int rendermode = 0;
 
-    ShaderProgram shaderColor;
+    ShaderProgram shaderPBR;
+
+    // Light properties
+    glm::vec3 lightPositions[4];
+    glm::vec3 lightColors[4];
 } sScene;
 
 struct {
@@ -68,7 +82,7 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 }
 
 void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-    cameraUpdateOrbit(sScene.camera, {0, 0}, yoffset * 0.1);
+    cameraUpdateOrbit(sScene.camera, {0, 0}, yoffset * 0.5);
 }
 
 void window_resize_callback(GLFWwindow *window, int width, int height) {
@@ -77,9 +91,39 @@ void window_resize_callback(GLFWwindow *window, int width, int height) {
     sScene.camera.height = height;
 }
 
+std::vector<MaterialSphere> createMaterialGrid() {
+    std::vector<MaterialSphere> spheres;
+
+    int rows = 7; // roughness variation
+    int cols = 7; // metallic variation
+    float spacing = 2.5f;
+
+    for (int row = 0; row < rows; row++) {
+        for (int col = 0; col < cols; col++) {
+            MaterialSphere sphere;
+            sphere.position = glm::vec3((col - cols / 2.0f) * spacing, (row - rows / 2.0f) * spacing, 0.0f);
+            sphere.roughness = glm::clamp((float)row / (float)(rows - 1), 0.05f, 1.0f);
+            sphere.metallic = (float)col / (float)(cols - 1);
+
+            // Create some color variety
+            if (col < cols / 3) {
+                sphere.albedo = glm::vec3(1.0f, 0.0f, 0.0f); // Red
+            } else if (col < 2 * cols / 3) {
+                sphere.albedo = glm::vec3(0.0f, 1.0f, 0.0f); // Green
+            } else {
+                sphere.albedo = glm::vec3(0.0f, 0.5f, 1.0f); // Blue
+            }
+
+            spheres.push_back(sphere);
+        }
+    }
+
+    return spheres;
+}
+
 int main(int argc, char **argv) {
     /* create window/context */
-    GLFWwindow *window = windowCreate("PBR Renderer", 1280, 720);
+    GLFWwindow *window = windowCreate("PBR Renderer - Material Grid", 1280, 720);
 
     /* set window callbacks */
     glfwSetKeyCallback(window, key_callback);
@@ -91,14 +135,38 @@ int main(int argc, char **argv) {
     /*---------- init opengl stuff ------------*/
     glEnable(GL_DEPTH_TEST);
 
-    /* load obj file and create opengl buffers for meshes */
-    sScene.meshes = meshLoadFromObj("assets/planet/cute-little-planet.obj");
+    /* create a sphere mesh (using UV sphere generation) */
+    sScene.sphereMesh = createUVSphereMesh(64, 64, 1.0f);
 
-    /* load shader from file */
-    sScene.shaderColor = shaderLoad("shader/default.vert", "shader/color.frag");
+    /* create material grid */
+    sScene.materialSpheres = createMaterialGrid();
 
-    /* create camera */
-    sScene.camera = cameraCreate(1280, 720, glm::radians(45.0), 0.1, 400.0, {0, 0, -150.0});
+    /* load PBR shader from file */
+    sScene.shaderPBR = shaderLoad("shader/pbr.vert", "shader/pbr.frag");
+
+    /* create camera - positioned to see the grid */
+    sScene.camera = cameraCreate(1280, 720, glm::radians(45.0f), 0.1f, 500.0f, {0.0f, 0.0f, 35.0f});
+
+    /* setup lights in a square around the grid */
+    sScene.lightPositions[0] = glm::vec3(-15.0f, 15.0f, 20.0f);
+    sScene.lightPositions[1] = glm::vec3(15.0f, 15.0f, 20.0f);
+    sScene.lightPositions[2] = glm::vec3(-15.0f, -15.0f, 20.0f);
+    sScene.lightPositions[3] = glm::vec3(15.0f, -15.0f, 20.0f);
+
+    sScene.lightColors[0] = glm::vec3(300.0f, 300.0f, 300.0f);
+    sScene.lightColors[1] = glm::vec3(300.0f, 300.0f, 300.0f);
+    sScene.lightColors[2] = glm::vec3(300.0f, 300.0f, 300.0f);
+    sScene.lightColors[3] = glm::vec3(300.0f, 300.0f, 300.0f);
+
+    std::cout << "PBR Material Grid Controls:" << std::endl;
+    std::cout << "  - Mouse drag to rotate camera" << std::endl;
+    std::cout << "  - Mouse wheel to zoom" << std::endl;
+    std::cout << "  - R to toggle wireframe" << std::endl;
+    std::cout << "  - P for screenshot" << std::endl;
+    std::cout << "  - ESC to exit" << std::endl;
+    std::cout << "\nGrid layout:" << std::endl;
+    std::cout << "  - Columns (left to right): Metallic 0.0 to 1.0" << std::endl;
+    std::cout << "  - Rows (bottom to top): Roughness 0.05 to 1.0" << std::endl;
 
     /*-------------- main loop ----------------*/
     float t = 0.0f;
@@ -106,40 +174,54 @@ int main(int argc, char **argv) {
     while (!glfwWindowShouldClose(window)) {
         /* poll and process input and window events */
         glfwPollEvents();
-        // t += 1.0/60.0f;
+        t += 1.0f / 60.0f;
 
-        /*------------ default frambuffer -------------*/
+        /*------------ render scene -------------*/
         {
-            glClearColor(135.f / 255.f, 206.f / 255.f, 235.f / 255.f, 1.0);
+            glClearColor(0.05f, 0.05f, 0.05f, 1.0f); // Dark background
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            /*------------ render cube (color) -------------*/
-            /* use shader and set the uniforms (names match the ones in the shader) */
-            {
-                /* setup camera and model matrices */
-                glm::mat4 proj = cameraProjection(sScene.camera);
-                glm::mat4 view = cameraView(sScene.camera);
+            /* setup camera matrices */
+            glm::mat4 proj = cameraProjection(sScene.camera);
+            glm::mat4 view = cameraView(sScene.camera);
+            glm::vec3 camPos = sScene.camera.position;
+
+            glUseProgram(sScene.shaderPBR.id);
+            shaderUniform(sScene.shaderPBR, "uProj", proj);
+            shaderUniform(sScene.shaderPBR, "uView", view);
+            shaderUniform(sScene.shaderPBR, "uCamPos", camPos);
+
+            /* set light uniforms */
+            shaderUniform(sScene.shaderPBR, "uLightPositions[0]", sScene.lightPositions[0]);
+            shaderUniform(sScene.shaderPBR, "uLightPositions[1]", sScene.lightPositions[1]);
+            shaderUniform(sScene.shaderPBR, "uLightPositions[2]", sScene.lightPositions[2]);
+            shaderUniform(sScene.shaderPBR, "uLightPositions[3]", sScene.lightPositions[3]);
+
+            shaderUniform(sScene.shaderPBR, "uLightColors[0]", sScene.lightColors[0]);
+            shaderUniform(sScene.shaderPBR, "uLightColors[1]", sScene.lightColors[1]);
+            shaderUniform(sScene.shaderPBR, "uLightColors[2]", sScene.lightColors[2]);
+            shaderUniform(sScene.shaderPBR, "uLightColors[3]", sScene.lightColors[3]);
+
+            /* render each sphere with its material properties */
+            glBindVertexArray(sScene.sphereMesh.vao);
+
+            for (const auto &sphere : sScene.materialSpheres) {
                 glm::mat4 model = glm::mat4(1.0f);
-                model = glm::rotate(model, (float)M_PI / 8.0f * t, glm::vec3(0.0f, 1.0f, 0.0f));
+                model = glm::translate(model, sphere.position);
 
-                glUseProgram(sScene.shaderColor.id);
-                shaderUniform(sScene.shaderColor, "uProj", proj);
-                shaderUniform(sScene.shaderColor, "uView", view);
-                shaderUniform(sScene.shaderColor, "uModel", model);
+                shaderUniform(sScene.shaderPBR, "uModel", model);
+                shaderUniform(sScene.shaderPBR, "uAlbedo", sphere.albedo);
+                shaderUniform(sScene.shaderPBR, "uMetallic", sphere.metallic);
+                shaderUniform(sScene.shaderPBR, "uRoughness", sphere.roughness);
+                shaderUniform(sScene.shaderPBR, "uAO", 1.0f);
 
-                /* draw all meshes loaded from obj file */
-                for (unsigned int m = 0; m < sScene.meshes.size(); m++) {
-                    /* bind vertex array object and draw its content */
-                    glBindVertexArray(sScene.meshes[m].vao);
-                    glDrawElements(GL_TRIANGLES, sScene.meshes[m].size_ibo, GL_UNSIGNED_INT, nullptr);
-                }
+                glDrawElements(GL_TRIANGLES, sScene.sphereMesh.size_ibo, GL_UNSIGNED_INT, nullptr);
             }
 
             /* cleanup opengl state */
             glBindVertexArray(0);
             glUseProgram(0);
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         /* swap front and back buffer */
         glfwSwapBuffers(window);
@@ -147,10 +229,8 @@ int main(int argc, char **argv) {
 
     /*-------- cleanup --------*/
     /* delete opengl shader and buffers */
-    shaderDelete(sScene.shaderColor);
-    for (unsigned int m = 0; m < sScene.meshes.size(); m++) {
-        meshDelete(sScene.meshes[m]);
-    }
+    shaderDelete(sScene.shaderPBR);
+    meshDelete(sScene.sphereMesh);
 
     /* destroy window/context */
     windowDelete(window);

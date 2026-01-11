@@ -7,8 +7,7 @@
 
 #include "mesh.h"
 
-Mesh meshCreate(const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices)
-{
+Mesh meshCreate(const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices) {
     GLuint vao = 0, vbo = 0, ebo = 0;
 
     glGenVertexArrays(1, &vao);
@@ -27,8 +26,12 @@ Mesh meshCreate(const std::vector<Vertex> &vertices, const std::vector<unsigned 
 
         glEnableVertexAttribArray(eDataIdx::Position);
         glEnableVertexAttribArray(eDataIdx::Color);
-        glVertexAttribPointer(eDataIdx::Position,   3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*) offsetof(Vertex, pos));
-        glVertexAttribPointer(eDataIdx::Color,      4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*) offsetof(Vertex, color));
+        glEnableVertexAttribArray(eDataIdx::Normal);
+        glEnableVertexAttribArray(eDataIdx::UV);
+        glVertexAttribPointer(eDataIdx::Position, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, pos));
+        glVertexAttribPointer(eDataIdx::Color, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, color));
+        glVertexAttribPointer(eDataIdx::Normal, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
+        glVertexAttribPointer(eDataIdx::UV, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, uv));
         glCheckError();
     }
 
@@ -36,11 +39,10 @@ Mesh meshCreate(const std::vector<Vertex> &vertices, const std::vector<unsigned 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    return Mesh{vao, vbo, ebo, (unsigned int) vertices.size(), (unsigned int) indices.size()};
+    return Mesh{vao, vbo, ebo, (unsigned int)vertices.size(), (unsigned int)indices.size()};
 }
 
-void meshDelete(const Mesh &mesh)
-{
+void meshDelete(const Mesh &mesh) {
     glDeleteBuffers(1, &mesh.vbo);
     glDeleteBuffers(1, &mesh.ebo);
     glDeleteVertexArrays(1, &mesh.vao);
@@ -59,36 +61,41 @@ std::vector<Mesh> meshLoadFromObj(const std::string &filepath) {
     }
 
     if (!reader.Warning().empty()) {
-        std::cout << "TinyObjReader: "<< reader.Warning() << std::endl;
+        std::cout << "TinyObjReader: " << reader.Warning() << std::endl;
     }
 
-    const tinyobj::attrib_t& attrib = reader.GetAttrib();
-    const std::vector<tinyobj::shape_t>& shapes = reader.GetShapes();
-    const std::vector<tinyobj::material_t>& materials = reader.GetMaterials();
+    const tinyobj::attrib_t &attrib = reader.GetAttrib();
+    const std::vector<tinyobj::shape_t> &shapes = reader.GetShapes();
+    const std::vector<tinyobj::material_t> &materials = reader.GetMaterials();
 
     // Loop over shapes (different meshes in obj files)
-    for (unsigned int s=0; s < shapes.size(); s++) {
+    for (unsigned int s = 0; s < shapes.size(); s++) {
         std::vector<Vertex> vertices;
         std::vector<unsigned int> indices;
-        
+
         // Loop over all faces of current shape
-        size_t indexOffset = 0; 
-        for (unsigned int f=0; f<shapes[s].mesh.num_face_vertices.size(); f++) {
+        size_t indexOffset = 0;
+        for (unsigned int f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
             unsigned int materialId = shapes[s].mesh.material_ids[f];
-            glm::vec4 faceColor = { materials[materialId].diffuse[0], materials[materialId].diffuse[1], materials[materialId].diffuse[2], 1.0 };
+            glm::vec4 faceColor = {materials[materialId].diffuse[0], materials[materialId].diffuse[1], materials[materialId].diffuse[2], 1.0};
 
             // Loop over vertices in the face, create vertex data as used in our mesh and add indices to vertices.
             for (size_t v = 0; v < 3; v++) {
-                unsigned int idx = shapes[s].mesh.indices[indexOffset + v].vertex_index;
+                tinyobj::index_t idx = shapes[s].mesh.indices[indexOffset + v];
 
-                vertices.push_back({
-                        {
-                            attrib.vertices[3 * idx],
-                            attrib.vertices[3 * idx + 1],
-                            attrib.vertices[3 * idx + 2]
-                        }, 
-                        faceColor
-                });
+                glm::vec3 pos = {attrib.vertices[3 * idx.vertex_index], attrib.vertices[3 * idx.vertex_index + 1], attrib.vertices[3 * idx.vertex_index + 2]};
+
+                glm::vec3 normal = {0.0f, 0.0f, 0.0f};
+                if (idx.normal_index >= 0) {
+                    normal = {attrib.normals[3 * idx.normal_index], attrib.normals[3 * idx.normal_index + 1], attrib.normals[3 * idx.normal_index + 2]};
+                }
+
+                glm::vec2 uv = {0.0f, 0.0f};
+                if (idx.texcoord_index >= 0) {
+                    uv = {attrib.texcoords[2 * idx.texcoord_index], attrib.texcoords[2 * idx.texcoord_index + 1]};
+                }
+
+                vertices.push_back({pos, faceColor, normal, uv});
 
                 indices.push_back(indexOffset + v);
             }
