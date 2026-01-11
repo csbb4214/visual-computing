@@ -1,96 +1,69 @@
-############################################
-#          VisComp Minimal OpenGl          #
-#------------------------------------------#
-# @author  Nikolaus Rauch / Stefan Spiss   #
-# @date    15.10.2021                      #
-# @updated 09.12.2024                      #
-#------------------------------------------#
-############################################
-cmake_minimum_required( VERSION 3.5 )
-project( viscomp-glm )
+file(GLOB ROOT_SOURCE *.cpp)
+file(GLOB ROOT_INLINE *.inl)
+file(GLOB ROOT_HEADER *.hpp)
+file(GLOB ROOT_TEXT ../*.txt)
+file(GLOB ROOT_MD ../*.md)
+file(GLOB ROOT_NAT ../util/glm.natvis)
 
-message("\n * Visual Computing Minimal OpenGL Example ")
-message(STATUS "${PROJECT_NAME} build environment --")
-message(STATUS "Build system:     ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}")
+file(GLOB_RECURSE CORE_SOURCE ./detail/*.cpp)
+file(GLOB_RECURSE CORE_INLINE ./detail/*.inl)
+file(GLOB_RECURSE CORE_HEADER ./detail/*.hpp)
 
+file(GLOB_RECURSE EXT_SOURCE ./ext/*.cpp)
+file(GLOB_RECURSE EXT_INLINE ./ext/*.inl)
+file(GLOB_RECURSE EXT_HEADER ./ext/*.hpp)
 
-#########################################
-#                Options                #
-#########################################
-option(BUILD_GLFW "Build glfw from source" ON)
-option(BUILD_GLM "Build glm from source" ON)
+file(GLOB_RECURSE GTC_SOURCE ./gtc/*.cpp)
+file(GLOB_RECURSE GTC_INLINE ./gtc/*.inl)
+file(GLOB_RECURSE GTC_HEADER ./gtc/*.hpp)
 
+file(GLOB_RECURSE GTX_SOURCE ./gtx/*.cpp)
+file(GLOB_RECURSE GTX_INLINE ./gtx/*.inl)
+file(GLOB_RECURSE GTX_HEADER ./gtx/*.hpp)
 
-#########################################
-#              CMake-Stuff              #
-#########################################
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
+file(GLOB_RECURSE SIMD_SOURCE ./simd/*.cpp)
+file(GLOB_RECURSE SIMD_INLINE ./simd/*.inl)
+file(GLOB_RECURSE SIMD_HEADER ./simd/*.h)
 
-#########################################
-#        Global Compiler Options        #
-#########################################
-set(GCC_COMPILE_OPTIONS "-Wall")
-set(GCC_COMPILE_DEBUG_OPTIONS "${GCC_COMPILE_OPTIONS};-ggdb;-O0")
-set(GCC_COMPILE_RELEASE_OPTIONS "${GCC_COMPILE_OPTIONS};-O3")
+source_group("Text Files" FILES ${ROOT_TEXT} ${ROOT_MD})
+source_group("Core Files" FILES ${CORE_SOURCE})
+source_group("Core Files" FILES ${CORE_INLINE})
+source_group("Core Files" FILES ${CORE_HEADER})
+source_group("EXT Files" FILES ${EXT_SOURCE})
+source_group("EXT Files" FILES ${EXT_INLINE})
+source_group("EXT Files" FILES ${EXT_HEADER})
+source_group("GTC Files" FILES ${GTC_SOURCE})
+source_group("GTC Files" FILES ${GTC_INLINE})
+source_group("GTC Files" FILES ${GTC_HEADER})
+source_group("GTX Files" FILES ${GTX_SOURCE})
+source_group("GTX Files" FILES ${GTX_INLINE})
+source_group("GTX Files" FILES ${GTX_HEADER})
+source_group("SIMD Files" FILES ${SIMD_SOURCE})
+source_group("SIMD Files" FILES ${SIMD_INLINE})
+source_group("SIMD Files" FILES ${SIMD_HEADER})
 
-add_compile_options("$<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:DEBUG>>:${GCC_COMPILE_DEBUG_OPTIONS}>")
-add_compile_options("$<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:RELEASE>>:${GCC_COMPILE_RELEASE_OPTIONS}>")
+add_library(glm-header-only INTERFACE)
+add_library(glm::glm-header-only ALIAS glm-header-only)
 
+target_include_directories(glm-header-only INTERFACE
+	"$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
+	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+)
 
-#########################################
-#     Build/Find External-Libraries     #
-#########################################
-add_subdirectory(external/glad)
-add_subdirectory(external/stb_image)
-
-if(BUILD_GLFW)
-    add_subdirectory(external/glfw)
-    set_property(TARGET glfw APPEND_STRING PROPERTY COMPILE_FLAGS " -w")
-    target_include_directories(glfw PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/external/glfw/include>)
+if (GLM_BUILD_LIBRARY)
+	add_library(glm
+		${ROOT_TEXT}      ${ROOT_MD}        ${ROOT_NAT}
+		${ROOT_SOURCE}    ${ROOT_INLINE}    ${ROOT_HEADER}
+		${CORE_SOURCE}    ${CORE_INLINE}    ${CORE_HEADER}
+		${EXT_SOURCE}     ${EXT_INLINE}     ${EXT_HEADER}
+		${GTC_SOURCE}     ${GTC_INLINE}     ${GTC_HEADER}
+		${GTX_SOURCE}     ${GTX_INLINE}     ${GTX_HEADER}
+		${SIMD_SOURCE}    ${SIMD_INLINE}    ${SIMD_HEADER}
+	)
+	add_library(glm::glm ALIAS glm)
+	target_link_libraries(glm PUBLIC glm-header-only)
 else()
-    find_package(glfw3 3.4 REQUIRED)
+	add_library(glm INTERFACE)
+	add_library(glm::glm ALIAS glm)
+	target_link_libraries(glm INTERFACE glm-header-only)
 endif()
-
-set(OpenGL_GL_PREFERENCE GLVND)
-find_package(OpenGL 3.2 REQUIRED)
-
-if(BUILD_GLM)
-  add_subdirectory(external/glm)
-else()
-  find_package(glm REQUIRED)
-endif()
-
-#########################################
-#            Build Example              #
-#########################################
-file(GLOB_RECURSE SRC src/*.cpp)
-file(GLOB_RECURSE HDR src/*.h)
-file(GLOB_RECURSE SHADER src/*.vert src/*.frag)
-
-source_group(TREE  ${CMAKE_CURRENT_SOURCE_DIR}
-             FILES ${SRC} ${HDR} ${SHADER})
-
-add_executable(glm_demo ${SRC} ${HDR} ${SHADER})
-target_link_libraries(glm_demo OpenGL::GL glfw glad stb_image glm)
-target_include_directories(glm_demo PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
-target_compile_features(glm_demo PUBLIC cxx_std_17)
-set_target_properties(glm_demo PROPERTIES CXX_EXTENSIONS OFF)
-
-#########################################
-#            Visual Studio Flavors      #
-#########################################
-set_property( DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT glm_demo )
-set_target_properties(
-    glm_demo PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:glm_demo> )
-
-#########################################
-#  Copy Shaders/Assets to build folder  #
-#########################################
-add_custom_target(glm_demo_copy_shader ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/shader
-    $<TARGET_FILE_DIR:glm_demo>/shader
-    )
