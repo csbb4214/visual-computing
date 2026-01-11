@@ -1,15 +1,7 @@
-############################################
-#          VisComp Minimal OpenGl          #
-#------------------------------------------#
-# @author  Nikolaus Rauch / Stefan Spiss   #
-# @date    15.10.2021                      #
-# @updated 09.12.2024                      #
-#------------------------------------------#
-############################################
 cmake_minimum_required( VERSION 3.5 )
-project( viscomp-tinyobj )
+project( pbr-renderer )
 
-message("\n * Visual Computing Minimal OpenGL Example ")
+message("\n * PBR Renderer Project ")
 message(STATUS "${PROJECT_NAME} build environment --")
 message(STATUS "Build system:     ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}")
 
@@ -74,31 +66,31 @@ file(GLOB_RECURSE SHADER src/*.vert src/*.frag)
 source_group(TREE  ${CMAKE_CURRENT_SOURCE_DIR}
              FILES ${SRC} ${HDR} ${SHADER})
 
-add_executable(tinyobjloader_demo ${SRC} ${HDR} ${SHADER})
-target_link_libraries(tinyobjloader_demo OpenGL::GL glfw glad stb_image glm  tinyobjloader)
-target_include_directories(tinyobjloader_demo PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
-target_compile_features(tinyobjloader_demo PUBLIC cxx_std_17)
-set_target_properties(tinyobjloader_demo PROPERTIES CXX_EXTENSIONS OFF)
+add_executable(pbr_renderer ${SRC} ${HDR} ${SHADER})
+target_link_libraries(pbr_renderer OpenGL::GL glfw glad stb_image glm tinyobjloader)
+target_include_directories(pbr_renderer PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
+target_compile_features(pbr_renderer PUBLIC cxx_std_17)
+set_target_properties(pbr_renderer PROPERTIES CXX_EXTENSIONS OFF)
 
 #########################################
 #            Visual Studio Flavors      #
 #########################################
-set_property( DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT tinyobjloader_demo )
+set_property( DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT pbr_renderer )
 set_target_properties(
-    tinyobjloader_demo PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:tinyobjloader_demo> )
+    pbr_renderer PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:pbr_renderer> )
 
 #########################################
 #  Copy Shaders/Assets to build folder  #
 #########################################
-add_custom_target(tinyobjloader_demo_copy_shader ALL
+add_custom_target(pbr_renderer_copy_shader ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shader
-    $<TARGET_FILE_DIR:tinyobjloader_demo>/shader
+    $<TARGET_FILE_DIR:pbr_renderer>/shader
     )
 
-add_custom_target(tinyobjloader_demo_copy_assets ALL
+add_custom_target(pbr_renderer_copy_assets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/assets
-    $<TARGET_FILE_DIR:tinyobjloader_demo>/assets
+    $<TARGET_FILE_DIR:pbr_renderer>/assets
     )
