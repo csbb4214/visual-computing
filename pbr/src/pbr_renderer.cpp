@@ -6,6 +6,8 @@
 #include "mygl/camera.h"
 #include "mygl/geometry.h"
 #include "mygl/shader.h"
+#include "mygl/mesh.h"
+#include "mygl/texture.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -24,10 +26,24 @@ struct {
 
     ShaderProgram shaderPBR;
 
+    // --- Planet OBJ ---
+    std::vector<Mesh> planetMeshes;
+    glm::mat4 planetModel = glm::mat4(1.0f);
+
+    // --- Optional PBR textures (planet) ---
+    bool useTextures = false;
+    GLuint texAlbedo = 0;
+    GLuint texMetallic = 0;
+    GLuint texRoughness = 0;
+    GLuint texAO = 0;
+
+    float exposure = 1.0f;
+
     // Light properties
     glm::vec3 lightPositions[4];
     glm::vec3 lightColors[4];
 } sScene;
+
 
 struct {
     bool mouseButtonPressed = false;
@@ -59,6 +75,21 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
         }
     }
+
+    if (key == GLFW_KEY_T && action == GLFW_PRESS) {
+        sScene.useTextures = !sScene.useTextures;
+        std::cout << "[Toggle] useTextures = " << (sScene.useTextures ? "ON" : "OFF") << std::endl;
+    }
+
+    if (key == GLFW_KEY_KP_ADD && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+        sScene.exposure *= 1.1f;
+        std::cout << "[Exposure] " << sScene.exposure << std::endl;
+    }
+    if (key == GLFW_KEY_KP_SUBTRACT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+        sScene.exposure /= 1.1f;
+        std::cout << "[Exposure] " << sScene.exposure << std::endl;
+    }
+
 }
 
 void mouse_pos_callback(GLFWwindow *window, double x, double y) {
@@ -144,6 +175,27 @@ int main(int argc, char **argv) {
     /* load PBR shader from file */
     sScene.shaderPBR = shaderLoad("shader/pbr.vert", "shader/pbr.frag");
 
+    // --- load planet OBJ (tinyobj) ---
+    sScene.planetMeshes = meshLoadFromObj("assets/planet/cute-little-planet.obj");
+
+    // transform so it sits above/behind the grid a bit
+    sScene.planetModel = glm::mat4(1.0f);
+    sScene.planetModel = glm::translate(sScene.planetModel, glm::vec3(0.0f, 0.0f, -8.0f));
+    sScene.planetModel = glm::scale(sScene.planetModel, glm::vec3(3.0f));
+
+    // --- load example textures (optional) ---
+    // IMPORTANT: These files may not exist yet -> loader uses magenta fallback.
+    // Put your textures into: pbr/assets/textures/ (create folder)
+    sScene.texAlbedo   = textureLoad2D("assets/textures/albedo.png", true);   // sRGB
+    sScene.texMetallic = textureLoad2D("assets/textures/metallic.png", false);
+    sScene.texRoughness= textureLoad2D("assets/textures/roughness.png", false);
+    sScene.texAO       = textureLoad2D("assets/textures/ao.png", false);
+
+    // start with textures OFF (toggle later)
+    sScene.useTextures = false;
+    sScene.exposure = 1.0f;
+
+
     /* create camera - positioned to see the grid */
     sScene.camera = cameraCreate(1280, 720, glm::radians(45.0f), 0.1f, 500.0f, {0.0f, 0.0f, 35.0f});
 
@@ -191,6 +243,21 @@ int main(int argc, char **argv) {
             shaderUniform(sScene.shaderPBR, "uView", view);
             shaderUniform(sScene.shaderPBR, "uCamPos", camPos);
 
+            shaderUniform(sScene.shaderPBR, "uExposure", sScene.exposure);
+            shaderUniform(sScene.shaderPBR, "uUseTextures", (int)sScene.useTextures);
+
+            // texture units (match pbr.frag)
+            shaderUniform(sScene.shaderPBR, "uAlbedoMap", 0);
+            shaderUniform(sScene.shaderPBR, "uMetallicMap", 1);
+            shaderUniform(sScene.shaderPBR, "uRoughnessMap", 2);
+            shaderUniform(sScene.shaderPBR, "uAOMap", 3);
+
+            glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, sScene.texAlbedo);
+            glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, sScene.texMetallic);
+            glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, sScene.texRoughness);
+            glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, sScene.texAO);
+
+
             /* set light uniforms */
             shaderUniform(sScene.shaderPBR, "uLightPositions[0]", sScene.lightPositions[0]);
             shaderUniform(sScene.shaderPBR, "uLightPositions[1]", sScene.lightPositions[1]);
@@ -217,6 +284,23 @@ int main(int argc, char **argv) {
 
                 glDrawElements(GL_TRIANGLES, sScene.sphereMesh.size_ibo, GL_UNSIGNED_INT, nullptr);
             }
+
+            // --- render planet OBJ ---
+            // use a single material (uniform fallback), textures optional
+            shaderUniform(sScene.shaderPBR, "uAlbedo", glm::vec3(0.9f, 0.85f, 0.7f));
+            shaderUniform(sScene.shaderPBR, "uMetallic", 0.0f);
+            shaderUniform(sScene.shaderPBR, "uRoughness", 0.5f);
+            shaderUniform(sScene.shaderPBR, "uAO", 1.0f);
+
+            for (const auto& m : sScene.planetMeshes) {
+                shaderUniform(sScene.shaderPBR, "uModel", sScene.planetModel);
+                glBindVertexArray(m.vao);
+                glDrawElements(GL_TRIANGLES, m.size_ibo, GL_UNSIGNED_INT, nullptr);
+            }
+
+            // restore sphere vao for safety (optional)
+            glBindVertexArray(sScene.sphereMesh.vao);
+
 
             /* cleanup opengl state */
             glBindVertexArray(0);
