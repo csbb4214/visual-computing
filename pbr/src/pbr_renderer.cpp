@@ -40,8 +40,9 @@ struct {
     float exposure = 1.0f;
 
     // Light properties
-    glm::vec3 lightPositions[4];
-    glm::vec3 lightColors[4];
+    glm::vec3 lightPositions[5];
+    glm::vec3 lightColors[5];
+
 } sScene;
 
 
@@ -193,22 +194,30 @@ int main(int argc, char **argv) {
 
     // start with textures OFF (toggle later)
     sScene.useTextures = false;
-    sScene.exposure = 1.0f;
+    sScene.exposure = 2.0f;
 
 
     /* create camera - positioned to see the grid */
     sScene.camera = cameraCreate(1280, 720, glm::radians(45.0f), 0.1f, 500.0f, {0.0f, 0.0f, 35.0f});
 
     /* setup lights in a square around the grid */
-    sScene.lightPositions[0] = glm::vec3(-15.0f, 15.0f, 20.0f);
-    sScene.lightPositions[1] = glm::vec3(15.0f, 15.0f, 20.0f);
-    sScene.lightPositions[2] = glm::vec3(-15.0f, -15.0f, 20.0f);
-    sScene.lightPositions[3] = glm::vec3(15.0f, -15.0f, 20.0f);
+    // --- PBR test lights (for spheres) ---
+    sScene.lightPositions[0] = glm::vec3(-10.0f,  10.0f, 10.0f);
+    sScene.lightPositions[1] = glm::vec3( 10.0f,  10.0f, 10.0f);
+    sScene.lightPositions[2] = glm::vec3(-10.0f, -10.0f, 10.0f);
+    sScene.lightPositions[3] = glm::vec3( 10.0f, -10.0f, 10.0f);
 
-    sScene.lightColors[0] = glm::vec3(300.0f, 300.0f, 300.0f);
-    sScene.lightColors[1] = glm::vec3(300.0f, 300.0f, 300.0f);
-    sScene.lightColors[2] = glm::vec3(300.0f, 300.0f, 300.0f);
-    sScene.lightColors[3] = glm::vec3(300.0f, 300.0f, 300.0f);
+    // --- NEW: strong key light for planet ---
+    sScene.lightPositions[4] = glm::vec3(0.0f, 5.0f, -4.0f);  // slightly above & in front of planet
+
+    sScene.lightColors[0] = glm::vec3(300.0f);
+    sScene.lightColors[1] = glm::vec3(300.0f);
+    sScene.lightColors[2] = glm::vec3(300.0f);  
+    sScene.lightColors[3] = glm::vec3(300.0f);
+
+    // brighter and slightly warm key light
+    sScene.lightColors[4] = glm::vec3(800.0f, 700.0f, 600.0f);
+
 
     std::cout << "PBR Material Grid Controls:" << std::endl;
     std::cout << "  - Mouse drag to rotate camera" << std::endl;
@@ -259,15 +268,17 @@ int main(int argc, char **argv) {
 
 
             /* set light uniforms */
-            shaderUniform(sScene.shaderPBR, "uLightPositions[0]", sScene.lightPositions[0]);
-            shaderUniform(sScene.shaderPBR, "uLightPositions[1]", sScene.lightPositions[1]);
-            shaderUniform(sScene.shaderPBR, "uLightPositions[2]", sScene.lightPositions[2]);
-            shaderUniform(sScene.shaderPBR, "uLightPositions[3]", sScene.lightPositions[3]);
+            /* set light uniforms */
+            for (int i = 0; i < 5; ++i) {
+                shaderUniform(sScene.shaderPBR,
+                            ("uLightPositions[" + std::to_string(i) + "]").c_str(),
+                            sScene.lightPositions[i]);
 
-            shaderUniform(sScene.shaderPBR, "uLightColors[0]", sScene.lightColors[0]);
-            shaderUniform(sScene.shaderPBR, "uLightColors[1]", sScene.lightColors[1]);
-            shaderUniform(sScene.shaderPBR, "uLightColors[2]", sScene.lightColors[2]);
-            shaderUniform(sScene.shaderPBR, "uLightColors[3]", sScene.lightColors[3]);
+                shaderUniform(sScene.shaderPBR,
+                            ("uLightColors[" + std::to_string(i) + "]").c_str(),
+                            sScene.lightColors[i]);
+            }
+
 
             /* render each sphere with its material properties */
             glBindVertexArray(sScene.sphereMesh.vao);

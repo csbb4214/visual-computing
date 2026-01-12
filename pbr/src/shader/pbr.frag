@@ -20,8 +20,8 @@ uniform sampler2D uRoughnessMap; // linear
 uniform sampler2D uAOMap;        // linear
 
 // Lights
-uniform vec3 uLightPositions[4];
-uniform vec3 uLightColors[4];
+uniform vec3 uLightPositions[5];
+uniform vec3 uLightColors[5];
 
 uniform vec3 uCamPos;
 
@@ -102,7 +102,7 @@ void main()
     F0 = mix(F0, albedo, metallic);
 
     vec3 Lo = vec3(0.0);
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         vec3 L = normalize(uLightPositions[i] - vWorldPos);
         vec3 H = normalize(V + L);
