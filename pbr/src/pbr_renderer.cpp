@@ -5,8 +5,8 @@
 
 #include "mygl/camera.h"
 #include "mygl/geometry.h"
-#include "mygl/shader.h"
 #include "mygl/mesh.h"
+#include "mygl/shader.h"
 #include "mygl/texture.h"
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -90,7 +90,6 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         sScene.exposure /= 1.1f;
         std::cout << "[Exposure] " << sScene.exposure << std::endl;
     }
-
 }
 
 void mouse_pos_callback(GLFWwindow *window, double x, double y) {
@@ -153,6 +152,47 @@ std::vector<MaterialSphere> createMaterialGrid() {
     return spheres;
 }
 
+
+void updateFreeCamera(Camera &cam, GLFWwindow *window) {
+    static double lastTime = glfwGetTime();
+    double currentTime = glfwGetTime();
+    float deltaTime = float(currentTime - lastTime);
+    lastTime = currentTime;
+
+    float moveSpeed = 10.0f * deltaTime;
+    float orbitMoveSpeed = 5.0f * deltaTime;
+
+    // Calculate camera vectors
+    glm::vec3 front = glm::normalize(cam.lookAt - cam.position);
+    glm::vec3 right = glm::normalize(glm::cross(front, cam.initUp));
+    glm::vec3 up = glm::normalize(glm::cross(right, front));
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        cam.position += front * moveSpeed;
+        cam.lookAt += front * moveSpeed; // Also move lookAt to maintain orbit
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        cam.position -= front * moveSpeed;
+        cam.lookAt -= front * moveSpeed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        cam.position -= right * moveSpeed;
+        cam.lookAt -= right * moveSpeed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        cam.position += right * moveSpeed;
+        cam.lookAt += right * moveSpeed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        cam.position += up * moveSpeed;
+        cam.lookAt += up * moveSpeed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        cam.position -= up * moveSpeed;
+        cam.lookAt -= up * moveSpeed;
+    }
+}
+
 int main(int argc, char **argv) {
     /* create window/context */
     GLFWwindow *window = windowCreate("PBR Renderer - Material Grid", 1280, 720);
@@ -173,24 +213,22 @@ int main(int argc, char **argv) {
     /* create material grid */
     sScene.materialSpheres = createMaterialGrid();
 
-    /* load PBR shader from file */
+    /* load PBR shaders from file */
     sScene.shaderPBR = shaderLoad("shader/pbr.vert", "shader/pbr.frag");
 
     // --- load planet OBJ (tinyobj) ---
     sScene.planetMeshes = meshLoadFromObj("assets/planet/cute-little-planet.obj");
 
-    // transform so it sits above/behind the grid a bit
+    // transform so it sits to the right of the grid
     sScene.planetModel = glm::mat4(1.0f);
-    sScene.planetModel = glm::translate(sScene.planetModel, glm::vec3(0.0f, 0.0f, -8.0f));
-    sScene.planetModel = glm::scale(sScene.planetModel, glm::vec3(3.0f));
+    sScene.planetModel = glm::translate(sScene.planetModel, glm::vec3(100.0f, 0.0f, 0.0f));
 
     // --- load example textures (optional) ---
-    // IMPORTANT: These files may not exist yet -> loader uses magenta fallback.
-    // Put your textures into: pbr/assets/textures/ (create folder)
-    sScene.texAlbedo   = textureLoad2D("assets/textures/albedo.png", true);   // sRGB
+    // loader uses magenta fallback.
+    sScene.texAlbedo = textureLoad2D("assets/textures/albedo.png", true); // sRGB
     sScene.texMetallic = textureLoad2D("assets/textures/metallic.png", false);
-    sScene.texRoughness= textureLoad2D("assets/textures/roughness.png", false);
-    sScene.texAO       = textureLoad2D("assets/textures/ao.png", false);
+    sScene.texRoughness = textureLoad2D("assets/textures/roughness.png", false);
+    sScene.texAO = textureLoad2D("assets/textures/ao.png", false);
 
     // start with textures OFF (toggle later)
     sScene.useTextures = false;
@@ -202,17 +240,17 @@ int main(int argc, char **argv) {
 
     /* setup lights in a square around the grid */
     // --- PBR test lights (for spheres) ---
-    sScene.lightPositions[0] = glm::vec3(-10.0f,  10.0f, 10.0f);
-    sScene.lightPositions[1] = glm::vec3( 10.0f,  10.0f, 10.0f);
+    sScene.lightPositions[0] = glm::vec3(-10.0f, 10.0f, 10.0f);
+    sScene.lightPositions[1] = glm::vec3(10.0f, 10.0f, 10.0f);
     sScene.lightPositions[2] = glm::vec3(-10.0f, -10.0f, 10.0f);
-    sScene.lightPositions[3] = glm::vec3( 10.0f, -10.0f, 10.0f);
+    sScene.lightPositions[3] = glm::vec3(10.0f, -10.0f, 10.0f);
 
     // --- NEW: strong key light for planet ---
-    sScene.lightPositions[4] = glm::vec3(0.0f, 5.0f, -4.0f);  // slightly above & in front of planet
+    sScene.lightPositions[4] = glm::vec3(0.0f, 5.0f, -4.0f); // slightly above & in front of planet
 
     sScene.lightColors[0] = glm::vec3(300.0f);
     sScene.lightColors[1] = glm::vec3(300.0f);
-    sScene.lightColors[2] = glm::vec3(300.0f);  
+    sScene.lightColors[2] = glm::vec3(300.0f);
     sScene.lightColors[3] = glm::vec3(300.0f);
 
     // brighter and slightly warm key light
@@ -236,6 +274,9 @@ int main(int argc, char **argv) {
         /* poll and process input and window events */
         glfwPollEvents();
         t += 1.0f / 60.0f;
+
+        updateFreeCamera(sScene.camera, window);
+
 
         /*------------ render scene -------------*/
         {
@@ -261,22 +302,22 @@ int main(int argc, char **argv) {
             shaderUniform(sScene.shaderPBR, "uRoughnessMap", 2);
             shaderUniform(sScene.shaderPBR, "uAOMap", 3);
 
-            glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, sScene.texAlbedo);
-            glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, sScene.texMetallic);
-            glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, sScene.texRoughness);
-            glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, sScene.texAO);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, sScene.texAlbedo);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, sScene.texMetallic);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, sScene.texRoughness);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, sScene.texAO);
 
 
             /* set light uniforms */
             /* set light uniforms */
             for (int i = 0; i < 5; ++i) {
-                shaderUniform(sScene.shaderPBR,
-                            ("uLightPositions[" + std::to_string(i) + "]").c_str(),
-                            sScene.lightPositions[i]);
+                shaderUniform(sScene.shaderPBR, ("uLightPositions[" + std::to_string(i) + "]").c_str(), sScene.lightPositions[i]);
 
-                shaderUniform(sScene.shaderPBR,
-                            ("uLightColors[" + std::to_string(i) + "]").c_str(),
-                            sScene.lightColors[i]);
+                shaderUniform(sScene.shaderPBR, ("uLightColors[" + std::to_string(i) + "]").c_str(), sScene.lightColors[i]);
             }
 
 
@@ -303,7 +344,7 @@ int main(int argc, char **argv) {
             shaderUniform(sScene.shaderPBR, "uRoughness", 0.5f);
             shaderUniform(sScene.shaderPBR, "uAO", 1.0f);
 
-            for (const auto& m : sScene.planetMeshes) {
+            for (const auto &m : sScene.planetMeshes) {
                 shaderUniform(sScene.shaderPBR, "uModel", sScene.planetModel);
                 glBindVertexArray(m.vao);
                 glDrawElements(GL_TRIANGLES, m.size_ibo, GL_UNSIGNED_INT, nullptr);
