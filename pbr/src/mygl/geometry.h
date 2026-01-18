@@ -5,3 +5,6 @@
 #include <vector>
 
 Mesh createUVSphereMesh(unsigned int xSegments, unsigned int ySegments, float radius);
+
+Mesh createCubeMesh();
+Mesh createQuadMesh();

@@ -14,10 +14,16 @@ uniform float uAO;
 
 // --- Optional Textures ---
 uniform bool uUseTextures;
-uniform sampler2D uAlbedoMap;    // sRGB
-uniform sampler2D uMetallicMap;  // linear
-uniform sampler2D uRoughnessMap; // linear
-uniform sampler2D uAOMap;        // linear
+uniform sampler2D uAlbedoMap;
+uniform sampler2D uMetallicMap;
+uniform sampler2D uRoughnessMap;
+uniform sampler2D uAOMap;
+
+// --- IBL ---
+uniform bool uUseIBL;
+uniform samplerCube uIrradianceMap;
+uniform samplerCube uPrefilterMap;
+uniform sampler2D uBRDFLUT;
 
 // Lights
 uniform vec3 uLightPositions[5];
@@ -29,9 +35,10 @@ uniform vec3 uCamPos;
 uniform float uExposure;
 
 const float PI = 3.14159265359;
+const float MAX_REFLECTION_LOD = 4.0;
 
 // ----------------------------------------------------------------------------
-// PBR helper functions (LearnOpenGL style)
+// PBR helper functions
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
     float a      = roughness * roughness;
@@ -73,11 +80,17 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
 // ----------------------------------------------------------------------------
 void main()
 {
     vec3 N = normalize(vNormal);
     vec3 V = normalize(uCamPos - vWorldPos);
+    vec3 R = reflect(-V, N);
 
     // --- Pick material parameters (textures or uniforms) ---
     vec3  albedo    = uAlbedo;
@@ -86,7 +99,7 @@ void main()
     float ao        = uAO;
 
     if (uUseTextures) {
-        albedo    = texture(uAlbedoMap, vUV).rgb;     // sampled as linear due to GL_SRGB8(_ALPHA8)
+        albedo    = texture(uAlbedoMap, vUV).rgb;
         metallic  = texture(uMetallicMap, vUV).r;
         roughness = texture(uRoughnessMap, vUV).r;
         ao        = texture(uAOMap, vUV).r;
@@ -101,6 +114,8 @@ void main()
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
 
+    // ----------------------------------------------------------------------------
+    // Direct lighting (point lights)
     vec3 Lo = vec3(0.0);
     for (int i = 0; i < 5; ++i)
     {
@@ -124,20 +139,43 @@ void main()
         kD *= (1.0 - metallic);
 
         float NdotL = max(dot(N, L), 0.0);
-
-        // ---- FIX: keine kaputte "...ed" Zeile mehr ----
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
     }
 
-    // simple ambient fallback (IBL wäre Bonus)
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    // ----------------------------------------------------------------------------
+    // Ambient lighting (IBL)
+    vec3 ambient = vec3(0.0);
+    
+    if (uUseIBL) {
+        // Fresnel for IBL
+        vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+        
+        vec3 kS = F;
+        vec3 kD = 1.0 - kS;
+        kD *= 1.0 - metallic;
+        
+        // Diffuse IBL
+        vec3 irradiance = texture(uIrradianceMap, N).rgb;
+        vec3 diffuse = irradiance * albedo;
+        
+        // Specular IBL
+        vec3 prefilteredColor = textureLod(uPrefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+        vec2 brdf = texture(uBRDFLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+        vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
+        
+        ambient = (kD * diffuse + specular) * ao;
+    } else {
+        // Simple ambient fallback
+        ambient = vec3(0.03) * albedo * ao;
+    }
 
+    // ----------------------------------------------------------------------------
     vec3 color = ambient + Lo;
 
-    // exposure tone mapping
+    // Exposure tone mapping
     color = vec3(1.0) - exp(-color * uExposure);
 
-    // gamma
+    // Gamma correction
     color = pow(color, vec3(1.0 / 2.2));
 
     FragColor = vec4(color, 1.0);
