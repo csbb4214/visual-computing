@@ -57,6 +57,10 @@ struct {
 
     bool useIBL = true;
 
+    // Skybox render
+    ShaderProgram shaderSkybox;
+    Mesh skyboxMesh;
+
     // Lights per scene
     glm::vec3 lightPositionsGrid[5];
     glm::vec3 lightColorsGrid[5];
@@ -277,7 +281,6 @@ GLuint generatePrefilterMap(GLuint envCubemap, ShaderProgram &shader, int resolu
     return prefilterMap;
 }
 
-// 6. Generate BRDF LUT
 GLuint generateBRDFLUT(ShaderProgram &shader, int resolution = 512) {
     GLuint brdfLUTTexture;
     glGenTextures(1, &brdfLUTTexture);
@@ -531,7 +534,7 @@ void setupIBL() {
     ShaderProgram brdfShader = shaderLoad("shader/brdf.vert", "shader/brdf.frag");
 
     // Load HDR environment
-    GLuint hdrTexture = loadHDR("assets/hdri/forest.hdr"); // Download from Poly Haven
+    GLuint hdrTexture = loadHDR("assets/hdri/sky.hdr");
 
     // Generate IBL maps
     sScene.envCubemap = equirectangularToCubemap(hdrTexture, equirectToCube, 512);
@@ -573,8 +576,26 @@ int main(int argc, char **argv) {
 
     /* load PBR shaders */
     sScene.shaderPBR = shaderLoad("shader/pbr.vert", "shader/pbr.frag");
+    sScene.shaderSkybox = shaderLoad("shader/skybox.vert", "shader/skybox.frag");
 
     setupIBL();
+
+    std::cout << "[Debug] envCubemap ID: " << sScene.envCubemap << std::endl;
+    std::cout << "[Debug] irradianceMap ID: " << sScene.irradianceMap << std::endl;
+    std::cout << "[Debug] prefilterMap ID: " << sScene.prefilterMap << std::endl;
+    std::cout << "[Debug] brdfLUT ID: " << sScene.brdfLUT << std::endl;
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, sScene.envCubemap);
+    GLint width1;
+    glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &width1);
+    std::cout << "[Debug] Cubemap face width: " << width1 << std::endl;
+
+    // Restore proper viewport after IBL setup
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    glViewport(0, 0, width, height);
+
+    sScene.skyboxMesh = createCubeMesh();
 
     /* load planet */
     sScene.planetMeshes = meshLoadFromObj("assets/planet/cute-little-planet.obj");
@@ -649,6 +670,36 @@ int main(int argc, char **argv) {
         /*------------ render scene -------------*/
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Get current camera
+        Camera &cam = (sScene.currentScene == SCENE_GRID) ? sScene.cameraGrid : sScene.cameraPlanet;
+        glm::mat4 proj = cameraProjection(cam);
+        glm::mat4 view = cameraView(cam);
+        glm::vec3 camPos = cam.position;
+
+        // ========== RENDER SKYBOX FIRST ==========
+        if (sScene.useIBL) {
+            glDepthMask(GL_FALSE);
+
+            glUseProgram(sScene.shaderSkybox.id);
+
+            // Remove translation from view matrix (keep only rotation)
+            glm::mat4 skyboxView = glm::mat4(glm::mat3(view));
+
+            shaderUniform(sScene.shaderSkybox, "uView", skyboxView);
+            shaderUniform(sScene.shaderSkybox, "uProjection", proj);
+            shaderUniform(sScene.shaderSkybox, "uExposure", sScene.exposure);
+            shaderUniform(sScene.shaderSkybox, "uSkybox", 0);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, sScene.envCubemap);
+
+            glBindVertexArray(sScene.skyboxMesh.vao);
+            glDrawElements(GL_TRIANGLES, sScene.skyboxMesh.size_ibo, GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+
+            glDepthMask(GL_TRUE);
+        }
 
         glUseProgram(sScene.shaderPBR.id);
 
@@ -756,7 +807,9 @@ int main(int argc, char **argv) {
 
     /*-------- cleanup --------*/
     shaderDelete(sScene.shaderPBR);
+    shaderDelete(sScene.shaderSkybox);
     meshDelete(sScene.sphereMesh);
+    meshDelete(sScene.skyboxMesh);
 
     // Cleanup IBL textures
     glDeleteTextures(1, &sScene.envCubemap);

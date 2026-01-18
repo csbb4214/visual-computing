@@ -44,7 +44,6 @@ Mesh createUVSphereMesh(unsigned int xSegments, unsigned int ySegments, float ra
     return meshCreate(vertices, indices);
 }
 
-
 Mesh createCubeMesh() {
     std::vector<Vertex> vertices = {// Back face
         {{-1.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
