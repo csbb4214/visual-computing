@@ -5,6 +5,7 @@ out vec4 FragColor;
 in vec3 vWorldPos;
 in vec3 vNormal;
 in vec2 vUV;
+in vec4 vColor;
 
 // --- Material (Uniform-Fallback) ---
 uniform vec3  uAlbedo;
@@ -14,6 +15,7 @@ uniform float uAO;
 
 // --- Optional Textures ---
 uniform bool uUseTextures;
+uniform bool uUseVertexColors;
 uniform sampler2D uAlbedoMap;
 uniform sampler2D uMetallicMap;
 uniform sampler2D uRoughnessMap;
@@ -92,7 +94,7 @@ void main()
     vec3 V = normalize(uCamPos - vWorldPos);
     vec3 R = reflect(-V, N);
 
-    // --- Pick material parameters (textures or uniforms) ---
+    // --- Pick material parameters ---
     vec3  albedo    = uAlbedo;
     float metallic  = uMetallic;
     float roughness = uRoughness;
@@ -103,6 +105,8 @@ void main()
         metallic  = texture(uMetallicMap, vUV).r;
         roughness = texture(uRoughnessMap, vUV).r;
         ao        = texture(uAOMap, vUV).r;
+    } else if (uUseVertexColors) {
+       albedo = vColor.rgb;
     }
 
     // Robustness

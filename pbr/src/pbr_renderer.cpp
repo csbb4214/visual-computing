@@ -401,9 +401,9 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 
 void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     if (sScene.currentScene == SCENE_GRID) {
-        cameraUpdateOrbit(sScene.cameraGrid, {0, 0}, yoffset * 0.5);
+        cameraUpdateOrbit(sScene.cameraGrid, {0, 0}, -yoffset * 0.5);
     } else {
-        cameraUpdateOrbit(sScene.cameraPlanet, {0, 0}, yoffset * 0.5);
+        cameraUpdateOrbit(sScene.cameraPlanet, {0, 0}, -yoffset * 0.5);
     }
 }
 
@@ -614,7 +614,7 @@ int main(int argc, char **argv) {
 
     /* setup cameras */
     sScene.cameraGrid = cameraCreate(1280, 720, glm::radians(45.0f), 0.1f, 500.0f, {0.0f, 0.0f, 35.0f}, {0, 0, 0}, {0, 1, 0});
-    sScene.cameraPlanet = cameraCreate(1280, 720, glm::radians(45.0f), 0.1f, 500.0f, {0.0f, 5.0f, 15.0f}, {0, 0, 0}, {0, 1, 0});
+    sScene.cameraPlanet = cameraCreate(1280, 720, glm::radians(45.0f), 0.1f, 500.0f, {0.0f, 160.0f, 25.0f}, {0, 0, 0}, {0, 1, 0});
 
     /* setup lights for grid scene */
     sScene.lightPositionsGrid[0] = glm::vec3(-10.0f, 10.0f, 10.0f);
@@ -707,6 +707,7 @@ int main(int argc, char **argv) {
         shaderUniform(sScene.shaderPBR, "uExposure", sScene.exposure);
         shaderUniform(sScene.shaderPBR, "uUseTextures", (int)sScene.useTextures);
         shaderUniform(sScene.shaderPBR, "uUseIBL", (int)sScene.useIBL);
+        shaderUniform(sScene.shaderPBR, "uUseVertexColors", 0);
 
         // Bind texture units (existing textures)
         shaderUniform(sScene.shaderPBR, "uAlbedoMap", 0);
@@ -747,6 +748,7 @@ int main(int argc, char **argv) {
             shaderUniform(sScene.shaderPBR, "uProj", proj);
             shaderUniform(sScene.shaderPBR, "uView", view);
             shaderUniform(sScene.shaderPBR, "uCamPos", camPos);
+            shaderUniform(sScene.shaderPBR, "uUseVertexColors", 0);
 
             /* set grid lights */
             for (int i = 0; i < 5; ++i) {
@@ -786,7 +788,7 @@ int main(int argc, char **argv) {
             }
 
             /* render planet */
-            shaderUniform(sScene.shaderPBR, "uAlbedo", glm::vec3(0.9f, 0.85f, 0.7f));
+            shaderUniform(sScene.shaderPBR, "uUseVertexColors", 1);
             shaderUniform(sScene.shaderPBR, "uMetallic", 0.0f);
             shaderUniform(sScene.shaderPBR, "uRoughness", 0.5f);
             shaderUniform(sScene.shaderPBR, "uAO", 1.0f);

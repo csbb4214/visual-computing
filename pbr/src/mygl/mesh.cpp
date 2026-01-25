@@ -97,7 +97,7 @@ std::vector<Mesh> meshLoadFromObj(const std::string &filepath) {
 
                 vertices.push_back({pos, faceColor, normal, uv});
 
-                indices.push_back(indexOffset + v);
+                indices.push_back(vertices.size() - 1);
             }
             indexOffset += 3;
         }
