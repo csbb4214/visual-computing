@@ -19,6 +19,14 @@ struct MaterialSphere {
     float metallic;
     float roughness;
     glm::vec3 albedo;
+    int textureSetIndex;
+};
+
+struct TextureSet {
+    std::string name;
+    GLuint arm;     // ao + rough + metal
+    GLuint diffuse; // albedo
+    GLuint normal;
 };
 
 struct {
@@ -31,6 +39,7 @@ struct {
     // Grid scene
     Mesh sphereMesh;
     std::vector<MaterialSphere> materialSpheres;
+    std::vector<TextureSet> textureSets;
 
     // Planet scene
     std::vector<Mesh> planetMeshes;
@@ -42,10 +51,6 @@ struct {
 
     // Textures
     bool useTextures = false;
-    GLuint texAlbedo = 0;
-    GLuint texMetallic = 0;
-    GLuint texRoughness = 0;
-    GLuint texAO = 0;
 
     float exposure = 1.0f;
 
@@ -509,6 +514,12 @@ std::vector<MaterialSphere> createMaterialGrid() {
     for (int row = 0; row < rows; row++) {
         for (int col = 0; col < cols; col++) {
             MaterialSphere sphere;
+
+            // assign texture based on row (and loop if there are more rows than textures)
+            int index = row % 5;
+            sphere.textureSetIndex = index;
+
+            // alternative values that are used when textures are disabled
             sphere.position = glm::vec3((col - cols / 2.0f) * spacing, (row - rows / 2.0f) * spacing, 0.0f);
             sphere.roughness = glm::clamp((float)row / (float)(rows - 1), 0.05f, 1.0f);
             sphere.metallic = (float)col / (float)(cols - 1);
@@ -527,6 +538,18 @@ std::vector<MaterialSphere> createMaterialGrid() {
     }
 
     return spheres;
+}
+
+TextureSet loadTextureSet(const std::string &path, const std::string &name) {
+    TextureSet set;
+    set.name = name;
+
+    set.arm = textureLoad2D((path + name + "/arm.png").c_str(), false);
+    set.diffuse = textureLoad2D((path + name + "/diff.png").c_str(), true);
+    set.normal = textureLoad2D((path + name + "/nor.png").c_str(), false);
+
+    std::cout << "[Textures] Loaded material: " << name << std::endl;
+    return set;
 }
 
 void setupIBL() {
@@ -607,10 +630,13 @@ int main(int argc, char **argv) {
     sScene.planetModel = glm::scale(sScene.planetModel, glm::vec3(2.0f));                 // Smaller scale
 
     /* load textures */
-    sScene.texAlbedo = textureLoad2D("assets/textures/albedo.png", true);
-    sScene.texMetallic = textureLoad2D("assets/textures/metallic.png", false);
-    sScene.texRoughness = textureLoad2D("assets/textures/roughness.png", false);
-    sScene.texAO = textureLoad2D("assets/textures/ao.png", false);
+    sScene.textureSets.push_back(loadTextureSet("assets/textures/", "blue_metal_plate"));
+    sScene.textureSets.push_back(loadTextureSet("assets/textures/", "diagonal_parquet"));
+    sScene.textureSets.push_back(loadTextureSet("assets/textures/", "old_stone_wall"));
+    sScene.textureSets.push_back(loadTextureSet("assets/textures/", "painted_concrete"));
+    sScene.textureSets.push_back(loadTextureSet("assets/textures/", "stained_pine"));
+
+    std::cout << "[Textures] Loaded " << sScene.textureSets.size() << " material sets" << std::endl;
 
     sScene.useTextures = false;
     sScene.exposure = 2.0f;
@@ -712,33 +738,22 @@ int main(int argc, char **argv) {
         shaderUniform(sScene.shaderPBR, "uUseIBL", (int)sScene.useIBL);
         shaderUniform(sScene.shaderPBR, "uUseVertexColors", 0);
 
-        // Bind texture units (existing textures)
-        shaderUniform(sScene.shaderPBR, "uAlbedoMap", 0);
-        shaderUniform(sScene.shaderPBR, "uMetallicMap", 1);
-        shaderUniform(sScene.shaderPBR, "uRoughnessMap", 2);
-        shaderUniform(sScene.shaderPBR, "uAOMap", 3);
+        // Bind texture units
+        shaderUniform(sScene.shaderPBR, "uARMMap", 0);
+        shaderUniform(sScene.shaderPBR, "uDiffuseMap", 1);
+        shaderUniform(sScene.shaderPBR, "uNormalMap", 2);
 
-        // NEW: Bind IBL texture units
-        shaderUniform(sScene.shaderPBR, "uIrradianceMap", 4);
-        shaderUniform(sScene.shaderPBR, "uPrefilterMap", 5);
-        shaderUniform(sScene.shaderPBR, "uBRDFLUT", 6);
-
-        /* bind textures */
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, sScene.texAlbedo);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, sScene.texMetallic);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, sScene.texRoughness);
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, sScene.texAO);
+        // Bind IBL texture units
+        shaderUniform(sScene.shaderPBR, "uIrradianceMap", 3);
+        shaderUniform(sScene.shaderPBR, "uPrefilterMap", 4);
+        shaderUniform(sScene.shaderPBR, "uBRDFLUT", 5);
 
         // bind IBL textures
-        glActiveTexture(GL_TEXTURE4);
+        glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_CUBE_MAP, sScene.irradianceMap);
-        glActiveTexture(GL_TEXTURE5);
+        glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_CUBE_MAP, sScene.prefilterMap);
-        glActiveTexture(GL_TEXTURE6);
+        glActiveTexture(GL_TEXTURE5);
         glBindTexture(GL_TEXTURE_2D, sScene.brdfLUT);
 
         if (sScene.currentScene == SCENE_GRID) {
@@ -764,12 +779,28 @@ int main(int argc, char **argv) {
             for (const auto &sphere : sScene.materialSpheres) {
                 glm::mat4 model = glm::mat4(1.0f);
                 model = glm::translate(model, sphere.position);
-
                 shaderUniform(sScene.shaderPBR, "uModel", model);
-                shaderUniform(sScene.shaderPBR, "uAlbedo", sphere.albedo);
-                shaderUniform(sScene.shaderPBR, "uMetallic", sphere.metallic);
-                shaderUniform(sScene.shaderPBR, "uRoughness", sphere.roughness);
-                shaderUniform(sScene.shaderPBR, "uAO", 1.0f);
+
+                // Check if textures are enabled
+                if (sScene.useTextures) {
+                    const TextureSet &texSet = sScene.textureSets[sphere.textureSetIndex];
+
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, texSet.arm);
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, texSet.diffuse);
+                    glActiveTexture(GL_TEXTURE2);
+                    glBindTexture(GL_TEXTURE_2D, texSet.normal);
+
+                    shaderUniform(sScene.shaderPBR, "uUseTextures", 1);
+
+                } else {
+                    shaderUniform(sScene.shaderPBR, "uAlbedo", sphere.albedo);
+                    shaderUniform(sScene.shaderPBR, "uMetallic", sphere.metallic);
+                    shaderUniform(sScene.shaderPBR, "uRoughness", sphere.roughness);
+                    shaderUniform(sScene.shaderPBR, "uAO", 1.0f);
+                    shaderUniform(sScene.shaderPBR, "uUseTextures", 0);
+                }
 
                 glDrawElements(GL_TRIANGLES, sScene.sphereMesh.size_ibo, GL_UNSIGNED_INT, nullptr);
             }

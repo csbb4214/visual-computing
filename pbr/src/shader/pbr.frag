@@ -13,13 +13,13 @@ uniform float uMetallic;
 uniform float uRoughness;
 uniform float uAO;
 
-// --- Optional Textures ---
+// --- Textures ---
 uniform bool uUseTextures;
 uniform bool uUseVertexColors;
-uniform sampler2D uAlbedoMap;
-uniform sampler2D uMetallicMap;
-uniform sampler2D uRoughnessMap;
-uniform sampler2D uAOMap;
+
+uniform sampler2D uARMMap;
+uniform sampler2D uDiffuseMap;
+uniform sampler2D uNormalMap;
 
 // --- IBL ---
 uniform bool uUseIBL;
@@ -101,16 +101,14 @@ void main()
     float ao        = uAO;
 
     if (uUseTextures) {
-        vec3 texAlbedo = texture(uAlbedoMap, vUV).rgb;
-        float texMetallic = texture(uMetallicMap, vUV).r;
-        float texRoughness = texture(uRoughnessMap, vUV).r;
-        float texAO = texture(uAOMap, vUV).r;
+        vec3 armSample = texture(uARMMap, vUV).rgb;
+        ao = armSample.r;
+        roughness = armSample.g;
+        metallic = armSample.b;
 
-        // Blend with per-sphere parameters
-        albedo    = mix(albedo, texAlbedo, 0.95);
-        metallic  = mix(metallic, texMetallic, 0.2);
-        roughness = mix(roughness, texRoughness, 0.2);
-        ao        *= texAO;
+        albedo = texture(uDiffuseMap, vUV).rgb;
+
+        vec3 normal = texture(uNormalMap, vUV).rgb;
     } else if (uUseVertexColors) {
        albedo = vColor.rgb;
     }
