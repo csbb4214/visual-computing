@@ -187,7 +187,7 @@ GLuint generateIrradianceMap(GLuint envCubemap, ShaderProgram &shader, int resol
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, resolution, resolution);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
-    GLuint irradianceMap = createCubemap(resolution, resolution, GL_RGB16F, GL_RGB, GL_FLOAT, false);
+    GLuint irradianceMap = createCubemap(resolution, resolution, GL_RGB16F, GL_RGB, GL_FLOAT, true);
 
     glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
     glm::mat4 captureViews[] = {glm::lookAt(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
@@ -221,6 +221,9 @@ GLuint generateIrradianceMap(GLuint envCubemap, ShaderProgram &shader, int resol
     glDeleteFramebuffers(1, &captureFBO);
     glDeleteRenderbuffers(1, &captureRBO);
     meshDelete(cubeMesh);
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
     std::cout << "[IBL] Irradiance map created" << std::endl;
     return irradianceMap;
@@ -538,7 +541,7 @@ void setupIBL() {
 
     // Generate IBL maps
     sScene.envCubemap = equirectangularToCubemap(hdrTexture, equirectToCube, 512);
-    sScene.irradianceMap = generateIrradianceMap(sScene.envCubemap, irradianceShader, 32);
+    sScene.irradianceMap = generateIrradianceMap(sScene.envCubemap, irradianceShader, 128);
     sScene.prefilterMap = generatePrefilterMap(sScene.envCubemap, prefilterShader, 128);
     sScene.brdfLUT = generateBRDFLUT(brdfShader, 512);
 

@@ -17,7 +17,7 @@ out vec4 vColor;
 void main()
 {
     vWorldPos = vec3(uModel * vec4(aPosition, 1.0));
-    vNormal = mat3(transpose(inverse(uModel))) * aNormal;
+    vNormal = normalize(mat3(transpose(inverse(uModel))) * aNormal);
     vUV = aUV;
     vColor = aColor;
     

@@ -101,10 +101,16 @@ void main()
     float ao        = uAO;
 
     if (uUseTextures) {
-        albedo    = texture(uAlbedoMap, vUV).rgb;
-        metallic  = texture(uMetallicMap, vUV).r;
-        roughness = texture(uRoughnessMap, vUV).r;
-        ao        = texture(uAOMap, vUV).r;
+        vec3 texAlbedo = texture(uAlbedoMap, vUV).rgb;
+        float texMetallic = texture(uMetallicMap, vUV).r;
+        float texRoughness = texture(uRoughnessMap, vUV).r;
+        float texAO = texture(uAOMap, vUV).r;
+
+        // Blend with per-sphere parameters
+        albedo    = mix(albedo, texAlbedo, 0.95);
+        metallic  = mix(metallic, texMetallic, 0.2);
+        roughness = mix(roughness, texRoughness, 0.2);
+        ao        *= texAO;
     } else if (uUseVertexColors) {
        albedo = vColor.rgb;
     }
