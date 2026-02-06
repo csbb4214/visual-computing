@@ -590,8 +590,8 @@ int main(int argc, char **argv) {
     glfwSetFramebufferSizeCallback(window, window_resize_callback);
 
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);                 // Important for skybox
-    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // Remove seams in cubemaps
+    glDepthFunc(GL_LEQUAL);
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
     /*---------- init opengl stuff ------------*/
     glEnable(GL_DEPTH_TEST);
@@ -679,7 +679,7 @@ int main(int argc, char **argv) {
     std::cout << "  - W/A/S/D/Space/Shift: Move camera" << std::endl;
     std::cout << "  - Q/E: Zoom in/out (planet scene)" << std::endl;
     std::cout << "  - R: Toggle wireframe" << std::endl;
-    std::cout << "  - T: Toggle textures (planet scene)" << std::endl;
+    std::cout << "  - T: Toggle textures" << std::endl;
     std::cout << "  - P: Screenshot" << std::endl;
     std::cout << "  - ESC: Exit" << std::endl;
 
@@ -706,7 +706,7 @@ int main(int argc, char **argv) {
         glm::mat4 view = cameraView(cam);
         glm::vec3 camPos = cam.position;
 
-        // ========== RENDER SKYBOX FIRST ==========
+        // RENDER SKYBOX
         if (sScene.useIBL) {
             glDepthMask(GL_FALSE);
 

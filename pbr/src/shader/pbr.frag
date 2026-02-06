@@ -7,7 +7,7 @@ in vec3 vNormal;
 in vec2 vUV;
 in vec4 vColor;
 
-// --- Material (Uniform-Fallback) ---
+// --- Material (Uniform-Fallback when textures are disabled) ---
 uniform vec3  uAlbedo;
 uniform float uMetallic;
 uniform float uRoughness;
@@ -113,7 +113,6 @@ void main()
        albedo = vColor.rgb;
     }
 
-    // Robustness
     roughness = clamp(roughness, 0.04, 1.0);
     metallic  = clamp(metallic, 0.0, 1.0);
     ao        = clamp(ao, 0.0, 1.0);
