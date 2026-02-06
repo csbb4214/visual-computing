@@ -627,8 +627,8 @@ int main(int argc, char **argv) {
     sScene.lightPositionsGrid[4] = glm::vec3(0.0f, 5.0f, -4.0f);
 
     for (int i = 0; i < 5; i++)
-        sScene.lightColorsGrid[i] = glm::vec3(300.0f);
-    sScene.lightColorsGrid[4] = glm::vec3(800.0f, 700.0f, 600.0f);
+        sScene.lightColorsGrid[i] = glm::vec3(50.0f);
+    sScene.lightColorsGrid[4] = glm::vec3(120.0f, 110.0f, 100.0f);
 
     /* setup lights for planet scene */
     sScene.lightPositionsPlanet[0] = glm::vec3(-8.0f, 8.0f, 8.0f);

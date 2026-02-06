@@ -18,7 +18,7 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
     float denom = (NdotH2 * (a2 - 1.0) + 1.0);
     denom = PI * denom * denom;
     
-    return nom / denom;
+    return nom / max(denom, 0.0001);
 }
 
 float RadicalInverse_VdC(uint bits) 
@@ -78,12 +78,28 @@ void main()
         float NdotL = max(dot(N, L), 0.0);
         if(NdotL > 0.0)
         {
-            prefilteredColor += texture(uEnvironmentMap, L).rgb * NdotL;
+            float D = DistributionGGX(N, H, uRoughness);
+            float NdotH = max(dot(N, H), 0.0);
+            float HdotV = max(dot(H, V), 0.0);
+            float pdf = D * NdotH / (4.0 * HdotV) + 0.0001;
+            
+            float resolution = 512.0;
+            float saTexel  = 4.0 * PI / (6.0 * resolution * resolution);
+            float saSample = 1.0 / (float(SAMPLE_COUNT) * pdf + 0.0001);
+            
+            float mipLevel = uRoughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel); 
+            
+            vec3 sampleColor = textureLod(uEnvironmentMap, L, mipLevel).rgb;
+            
+            sampleColor = min(sampleColor, vec3(100.0));
+            
+            prefilteredColor += sampleColor * NdotL;
             totalWeight += NdotL;
         }
     }
     
-    prefilteredColor = prefilteredColor / totalWeight;
-    
+    prefilteredColor = prefilteredColor / max(totalWeight, 0.0001);
+    prefilteredColor = min(prefilteredColor, vec3(100.0));
+        
     FragColor = vec4(prefilteredColor, 1.0);
 }
